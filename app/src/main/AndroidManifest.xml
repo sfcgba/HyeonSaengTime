@@ -24,11 +24,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <service
             android:name=".TrackingService"
             android:foregroundServiceType="specialUse"
-            android:exported="false" />
+            android:exported="false">
+
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="This app tracks device screen ON/OFF events to help users reduce smartphone addiction." />
+        </service>
 
     </application>
 

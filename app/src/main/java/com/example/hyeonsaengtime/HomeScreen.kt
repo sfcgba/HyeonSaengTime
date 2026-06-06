@@ -23,15 +23,31 @@ fun HomeScreen(
     var goalHours       by remember { mutableStateOf(8) }
     var streakCount     by remember { mutableStateOf(0) }
 
+//LaunchedEffect 코드 수정
     LaunchedEffect(Unit) {
         updateStreakIfNeeded(context)
+        val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+
         while (true) {
             val prefs = context.getSharedPreferences("hyeonsaeng", Context.MODE_PRIVATE)
-            val today = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
-            totalLockedMillis = prefs.getLong("total_$today", 0L)
-            sleepHours        = prefs.getInt("sleep_hours", 7)
-            goalHours         = prefs.getInt("goal_hours", 8)
-            streakCount       = prefs.getInt("streak_count", 0)
+            val today = sdf.format(Date())
+            val savedTotal = prefs.getLong("total_$today", 0L)
+            val activeLockStart = prefs.getLong("active_lock_start_millis", 0L)
+
+            if (activeLockStart > 0L) {
+                val todayStart = TimeUtils.getTodayStartMillis()
+                val sessionStartForToday = maxOf(activeLockStart, todayStart)
+                val liveElapsedToday = System.currentTimeMillis() - sessionStartForToday
+
+                totalLockedMillis = savedTotal + maxOf(0L, liveElapsedToday)
+            } else {
+                totalLockedMillis = savedTotal
+            }
+
+            sleepHours  = prefs.getInt("sleep_hours", 7)
+            goalHours = prefs.getInt("goal_hours", 8)
+            streakCount = prefs.getInt("streak_count", 0)
+
             delay(1000L)
         }
     }
