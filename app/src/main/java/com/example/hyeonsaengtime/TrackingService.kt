@@ -35,7 +35,7 @@ class TrackingService : Service() {
         }
         ContextCompat.registerReceiver(
             this, screenReceiver, filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED
+            ContextCompat.RECEIVER_EXPORTED
         )
         Log.d("현생", "서비스 시작됨")
     }
