@@ -35,7 +35,7 @@ class TrackingService : Service() {
         }
         ContextCompat.registerReceiver(
             this, screenReceiver, filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED
+            ContextCompat.RECEIVER_EXPORTED
         )
         Log.d("현생", "서비스 시작됨")
     }
@@ -44,6 +44,13 @@ class TrackingService : Service() {
         super.onDestroy()
         unregisterReceiver(screenReceiver)
         Log.d("현생", "서비스 종료됨")
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // START_STICKY = best-effort restart hint 서비스 시작전 힌트
+        // process is killed. It does not recover force-stops, user-initiated stops,
+        // 아직 위험성 있음. 일단 mvp단계에서는 이렇게만 구현한다.
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
