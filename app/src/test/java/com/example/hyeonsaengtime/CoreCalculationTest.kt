@@ -42,9 +42,11 @@ class CoreCalculationTest {
 
     @Test
     fun hyeonsaengProgress_usesTotalLockedMillisDirectly() {
-        val progress = HyeonSaengProgressCalculator.calculate(totalLockedMillis = hours(9))
+        val progress = HyeonSaengProgressCalculator.calculate(
+            totalLockedMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS
+        )
 
-        assertEquals(hours(9), progress.hyeonsaengMillis)
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, progress.hyeonsaengMillis)
         assertEquals(HyeonSaengRules.STREAK_REQUIRED_HOURS, progress.streakRequiredHours)
         assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, progress.streakRequiredMillis)
         assertEquals(1f, progress.streakProgress, 0.0001f)
@@ -54,18 +56,18 @@ class CoreCalculationTest {
 
     @Test
     fun hyeonsaengProgress_calculatesProgressAndRemainingTime() {
-        val progress = HyeonSaengProgressCalculator.calculate(totalLockedMillis = hours(2))
+        val progress = HyeonSaengProgressCalculator.calculate(totalLockedMillis = hours(4))
 
         assertEquals(0.25f, progress.streakProgress, 0.0001f)
         assertFalse(progress.isStreakRequirementMet)
-        assertEquals(hours(6), progress.remainingMillisForStreak)
+        assertEquals(hours(12), progress.remainingMillisForStreak)
     }
 
     @Test
     fun streakCalculator_incrementsWhenYesterdayMeetsGoal() {
         val update = StreakCalculator.calculate(
             todayDateKey = "20260610",
-            yesterdayTotalMillis = hours(8),
+            yesterdayTotalMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
             requiredMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
             currentStreakCount = 2,
             lastCheckDateKey = "20260609"
@@ -95,7 +97,7 @@ class CoreCalculationTest {
     fun streakCalculator_doesNotPersistWhenAlreadyCheckedToday() {
         val update = StreakCalculator.calculate(
             todayDateKey = "20260610",
-            yesterdayTotalMillis = hours(8),
+            yesterdayTotalMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
             requiredMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
             currentStreakCount = 2,
             lastCheckDateKey = "20260610"
@@ -111,14 +113,14 @@ class CoreCalculationTest {
         val now = millis(seoul, 2026, 6, 10, 12, 0)
         val prefs = CoreFakeSharedPreferences(
             mapOf<String, Any>(
-                HyeonSaengLocalStore.totalKey("20260610") to hours(9)
+                HyeonSaengLocalStore.totalKey("20260610") to HyeonSaengRules.STREAK_REQUIRED_MILLIS
             )
         )
         val store = HyeonSaengLocalStore(prefs)
 
         val progress = store.getTodayProgress(now)
 
-        assertEquals(hours(9), progress.hyeonsaengMillis)
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, progress.hyeonsaengMillis)
         assertEquals(HyeonSaengRules.STREAK_REQUIRED_HOURS, progress.streakRequiredHours)
         assertTrue(progress.isStreakRequirementMet)
     }
@@ -128,7 +130,7 @@ class CoreCalculationTest {
         val now = millis(seoul, 2026, 6, 10, 9, 0)
         val prefs = CoreFakeSharedPreferences(
             mapOf<String, Any>(
-                HyeonSaengLocalStore.totalKey("20260609") to hours(9),
+                HyeonSaengLocalStore.totalKey("20260609") to HyeonSaengRules.STREAK_REQUIRED_MILLIS,
                 HyeonSaengLocalStore.totalKey("20260610") to hours(1),
                 HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
             )
@@ -138,7 +140,7 @@ class CoreCalculationTest {
         val result = store.getYesterdayResult(now)
 
         assertEquals("20260609", result.dateKey)
-        assertEquals(hours(9), result.hyeonsaengMillis)
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, result.hyeonsaengMillis)
         assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, result.streakRequiredMillis)
         assertTrue(result.isStreakRequirementMet)
         assertEquals(0L, result.remainingMillisForStreak)
@@ -155,7 +157,7 @@ class CoreCalculationTest {
         val now = millis(seoul, 2026, 6, 10, 9, 0)
         val prefs = CoreFakeSharedPreferences(
             mapOf<String, Any>(
-                HyeonSaengLocalStore.totalKey("20260609") to hours(7),
+                HyeonSaengLocalStore.totalKey("20260609") to hours(15),
                 HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
             )
         )
@@ -164,7 +166,7 @@ class CoreCalculationTest {
         val result = store.getYesterdayResult(now)
 
         assertEquals("20260609", result.dateKey)
-        assertEquals(hours(7), result.hyeonsaengMillis)
+        assertEquals(hours(15), result.hyeonsaengMillis)
         assertFalse(result.isStreakRequirementMet)
         assertEquals(hours(1), result.remainingMillisForStreak)
         assertEquals(0, result.streakCountAfterUpdate)
@@ -176,7 +178,7 @@ class CoreCalculationTest {
         val now = millis(seoul, 2026, 6, 10, 9, 0)
         val prefs = CoreFakeSharedPreferences(
             mapOf<String, Any>(
-                HyeonSaengLocalStore.totalKey("20260609") to hours(8),
+                HyeonSaengLocalStore.totalKey("20260609") to HyeonSaengRules.STREAK_REQUIRED_MILLIS,
                 HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
             )
         )

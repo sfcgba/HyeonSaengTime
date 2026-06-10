@@ -17,7 +17,7 @@
 
 - 고정 규칙 추가
   - `HyeonSaengRules`에서 앱 규칙을 관리합니다.
-  - 현재 streak 기준은 8시간입니다.
+  - 현재 streak 기준은 16시간입니다.
 
 - 날짜 키 생성 분리
   - `DateKeyFormatter`에서 `yyyyMMdd` 날짜 키를 생성합니다.
