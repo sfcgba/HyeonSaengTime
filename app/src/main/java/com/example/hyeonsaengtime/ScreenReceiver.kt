@@ -9,28 +9,33 @@ import android.util.Log
 class ScreenReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val prefs = context.getSharedPreferences("hyeonsaeng", Context.MODE_PRIVATE)
+        val action = intent.action ?: return
+        val eventAtMillis = System.currentTimeMillis()
 
-        when (intent.action) {
+        TrackingSessionManager.recordScreenEvent(prefs, action, eventAtMillis)
+
+        val result = when (action) {
             Intent.ACTION_SCREEN_OFF -> {
-                prefs.edit()
-                    .putLong(KEY_ACTIVE_LOCK_START, System.currentTimeMillis())
-                    .apply()
-                Log.d("hyeonsaeng", "screen off")
+                TrackingSessionManager.handleScreenOff(prefs, eventAtMillis)
             }
 
             Intent.ACTION_SCREEN_ON -> {
                 // none = screen-on, swipe/PIN = USER_PRESENT.
-                if (isKeyguardLocked(context)) {
-                    Log.d("hyeonsaeng", "screen on - waiting for user present")
-                } else {
-                    finishActiveSession(prefs, "screen on")
-                }
+                TrackingSessionManager.handleScreenOn(
+                    prefs = prefs,
+                    isKeyguardLocked = isKeyguardLocked(context),
+                    eventAtMillis = eventAtMillis
+                )
             }
 
             Intent.ACTION_USER_PRESENT -> {
-                finishActiveSession(prefs, "user present")
+                TrackingSessionManager.handleUserPresent(prefs, eventAtMillis)
             }
+
+            else -> return
         }
+
+        logResult(action, result)
     }
 
     private fun isKeyguardLocked(context: Context): Boolean {
@@ -38,31 +43,17 @@ class ScreenReceiver : BroadcastReceiver() {
         return keyguardManager.isKeyguardLocked
     }
 
-    private fun finishActiveSession(
-        prefs: android.content.SharedPreferences,
-        reason: String
-    ) {
-        val lockStart = prefs.getLong(KEY_ACTIVE_LOCK_START, 0L)
-        if (lockStart <= 0L) return
-
-        val now = System.currentTimeMillis()
-        val dailyDurations = UsageSessionCalculator.splitByLocalDate(lockStart, now)
-        val editor = prefs.edit()
-
-        dailyDurations.forEach { dailyDuration ->
-            val key = "total_${dailyDuration.dateKey}"
-            val accumulated = prefs.getLong(key, 0L)
-            editor.putLong(key, accumulated + dailyDuration.durationMillis)
+    private fun logResult(action: String, result: TrackingSessionResult) {
+        val message = when (result.update) {
+            TrackingSessionUpdate.STARTED -> "$action - active session started"
+            TrackingSessionUpdate.WAITING_FOR_USER_PRESENT -> {
+                "$action - waiting for user present"
+            }
+            TrackingSessionUpdate.FINALIZED -> {
+                "$action - saved ${result.dailyDurations.size} day segment(s)"
+            }
+            TrackingSessionUpdate.IGNORED -> "$action - ignored"
         }
-
-        editor.remove(KEY_ACTIVE_LOCK_START).apply()
-        Log.d("hyeonsaeng", "$reason - saved ${dailyDurations.size} day segment(s)")
-    }
-
-    // 전용 계산 helper가 필요할 수 있다. 자정을 넘길 시 알림표시를 정확하게 하기위해
-    // 예시 getTodayLiveMillis(prefs, now)
-
-    private companion object {
-        const val KEY_ACTIVE_LOCK_START = "active_lock_start_millis"
+        Log.d("hyeonsaeng", message)
     }
 }
