@@ -10,10 +10,24 @@ class HyeonSaengLocalStore(
         context: Context
     ) : this(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
 
-    fun getTodayProgress(nowMillis: Long = System.currentTimeMillis()): TodayProgress {
+    fun getTodayProgress(nowMillis: Long = System.currentTimeMillis()): HyeonSaengProgress {
         val todayDateKey = DateKeyFormatter.todayKey(nowMillis)
-        return TodayProgressCalculator.calculate(
+        return HyeonSaengProgressCalculator.calculate(
             totalLockedMillis = getTotalMillis(todayDateKey)
+        )
+    }
+
+    fun getYesterdayResult(nowMillis: Long = System.currentTimeMillis()): DayResult {
+        val streakCountAfterUpdate = updateStreakIfNeeded(nowMillis)
+        val yesterdayDateKey = DateKeyFormatter.yesterdayKey(nowMillis)
+        val progress = HyeonSaengProgressCalculator.calculate(
+            totalLockedMillis = getTotalMillis(yesterdayDateKey)
+        )
+
+        return DayResult(
+            dateKey = yesterdayDateKey,
+            progress = progress,
+            streakCountAfterUpdate = streakCountAfterUpdate
         )
     }
 

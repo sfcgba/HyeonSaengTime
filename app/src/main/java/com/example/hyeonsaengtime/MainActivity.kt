@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengTimeTheme
@@ -34,10 +35,26 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             HyeonSaengTimeTheme {
+                var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    HomeScreen(modifier = Modifier.padding(innerPadding))
+                    when (currentScreen) {
+                        AppScreen.HOME -> HomeScreen(
+                            onResultClick = { currentScreen = AppScreen.RESULT },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                        AppScreen.RESULT -> ResultScreen(
+                            onBack = { currentScreen = AppScreen.HOME },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+private enum class AppScreen {
+    HOME,
+    RESULT
 }
