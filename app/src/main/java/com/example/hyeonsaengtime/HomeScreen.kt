@@ -1,6 +1,5 @@
 package com.example.hyeonsaengtime
 
-import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -9,39 +8,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
-import java.util.*
 
 @Composable
 fun HomeScreen(
-    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var totalLockedMillis by remember { mutableStateOf(0L) }
-    var sleepHours      by remember { mutableStateOf(7) }
-    var goalHours       by remember { mutableStateOf(8) }
-    var streakCount     by remember { mutableStateOf(0) }
+    val localStore = remember(context) { HyeonSaengLocalStore(context) }
+    var todayProgress by remember {
+        mutableStateOf(
+            TodayProgressCalculator.calculate(totalLockedMillis = 0L)
+        )
+    }
+    var streakCount by remember { mutableStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        updateStreakIfNeeded(context)
+    LaunchedEffect(localStore) {
+        streakCount = localStore.updateStreakIfNeeded()
         while (true) {
-            val prefs = context.getSharedPreferences("hyeonsaeng", Context.MODE_PRIVATE)
-            val today = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
-            totalLockedMillis = prefs.getLong("total_$today", 0L)
-            sleepHours        = prefs.getInt("sleep_hours", 7)
-            goalHours         = prefs.getInt("goal_hours", 8)
-            streakCount       = prefs.getInt("streak_count", 0)
+            todayProgress = localStore.getTodayProgress()
+            streakCount = localStore.getStreakCount()
             delay(1000L)
         }
     }
 
-    val sleepMillis      = sleepHours * 3600 * 1000L
-    val hyeonsaengMillis = maxOf(0L, totalLockedMillis - sleepMillis)
-    val goalMillis       = goalHours * 3600 * 1000L
-    val goalProgress     = if (goalMillis > 0)
-        (hyeonsaengMillis.toFloat() / goalMillis).coerceAtMost(1f) else 0f
-    val goalMet          = hyeonsaengMillis >= goalMillis
+    val hyeonsaengMillis = todayProgress.todayHyeonsaengMillis
 
     val hours   = hyeonsaengMillis / 1000 / 3600
     val minutes = (hyeonsaengMillis / 1000 % 3600) / 60
@@ -62,50 +52,25 @@ fun HomeScreen(
         )
         Spacer(Modifier.height(32.dp))
 
-        Text("목표: ${goalHours}시간", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            "streak 기준: ${todayProgress.streakRequiredHours}시간",
+            style = MaterialTheme.typography.bodyLarge
+        )
         Spacer(Modifier.height(8.dp))
         LinearProgressIndicator(
-            progress = { goalProgress },
+            progress = { todayProgress.streakProgress },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            if (goalMet) "목표 달성!"
-            else "목표까지 ${formatRemaining(goalMillis - hyeonsaengMillis)} 남음",
+            if (todayProgress.isStreakRequirementMet) "오늘 streak 달성!"
+            else "streak까지 ${formatRemaining(todayProgress.remainingMillisForStreak)} 남음",
             style = MaterialTheme.typography.bodyMedium
         )
         Spacer(Modifier.height(32.dp))
 
         Text("${streakCount}일 연속 달성", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(32.dp))
-
-        Button(onClick = onSettingsClick) {
-            Text("설정")
-        }
     }
-}
-
-fun updateStreakIfNeeded(context: Context) {
-    val prefs     = context.getSharedPreferences("hyeonsaeng", Context.MODE_PRIVATE)
-    val today     = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
-    val lastCheck = prefs.getString("streak_last_date", "") ?: ""
-    if (lastCheck == today) return
-
-    val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
-    val yesterday     = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(cal.time)
-    val yesterdayTotal = prefs.getLong("total_$yesterday", 0L)
-
-    val sleepMillis = prefs.getInt("sleep_hours", 7) * 3600 * 1000L
-    val goalMillis  = prefs.getInt("goal_hours", 8)  * 3600 * 1000L
-    val yesterdayHs = maxOf(0L, yesterdayTotal - sleepMillis)
-
-    val newStreak = if (yesterdayHs >= goalMillis)
-        prefs.getInt("streak_count", 0) + 1 else 0
-
-    prefs.edit()
-        .putInt("streak_count", newStreak)
-        .putString("streak_last_date", today)
-        .apply()
 }
 
 fun formatRemaining(millis: Long): String {
