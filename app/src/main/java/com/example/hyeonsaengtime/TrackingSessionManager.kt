@@ -71,19 +71,51 @@ object TrackingSessionManager {
             return TrackingSessionResult(TrackingSessionUpdate.IGNORED)
         }
 
-        val dailyDurations = UsageSessionCalculator.splitByLocalDate(lockStart, eventAtMillis)
+        val personalTimeZone = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
+        val dailyDurations = UsageSessionCalculator.splitByLocalDate(
+            startMillis = lockStart,
+            endMillis = eventAtMillis,
+            timeZone = personalTimeZone
+        )
         val editor = prefs.edit()
 
         dailyDurations.forEach { dailyDuration ->
-            val key = "total_${dailyDuration.dateKey}"
+            val key = HyeonSaengLocalStore.totalKey(dailyDuration.dateKey)
             val accumulated = prefs.getLong(key, 0L)
             editor.putLong(key, accumulated + dailyDuration.durationMillis)
         }
+
+        addRoomDurationsIfRoomIsValid(
+            prefs = prefs,
+            editor = editor,
+            lockStart = lockStart,
+            eventAtMillis = eventAtMillis
+        )
 
         editor.remove(KEY_ACTIVE_LOCK_START).apply()
         return TrackingSessionResult(
             update = TrackingSessionUpdate.FINALIZED,
             dailyDurations = dailyDurations
         )
+    }
+
+    private fun addRoomDurationsIfRoomIsValid(
+        prefs: SharedPreferences,
+        editor: SharedPreferences.Editor,
+        lockStart: Long,
+        eventAtMillis: Long
+    ) {
+        val roomState = when (val result = RoomLocalStore(prefs).loadRoomState()) {
+            is RoomLoadResult.Created -> result.state
+            RoomLoadResult.NotCreated,
+            is RoomLoadResult.Invalid -> return
+        }
+        val roomTimeZone = HyeonSaengTimeZoneStore.timeZoneOrNull(roomState.hostTimeZoneId) ?: return
+        val roomDurations = UsageSessionCalculator.splitByLocalDate(
+            startMillis = lockStart,
+            endMillis = eventAtMillis,
+            timeZone = roomTimeZone
+        )
+        RoomLocalStore(prefs).addRoomDurations(roomDurations, editor)
     }
 }

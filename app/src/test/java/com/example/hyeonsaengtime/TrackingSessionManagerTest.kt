@@ -115,6 +115,35 @@ class TrackingSessionManagerTest {
     }
 
     @Test
+    fun handleUserPresent_savesPersonalAndRoomTotalsWithSeparateTimeZones() {
+        val utc = TimeZone.getTimeZone("UTC")
+        val prefs = FakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengTimeZoneStore.KEY_PERSONAL_TIME_ZONE_ID to "UTC",
+                RoomLocalStore.KEY_ROOM_CREATED to true,
+                RoomLocalStore.KEY_ROOM_NAME to "테스트방",
+                RoomLocalStore.KEY_ROOM_NICKNAME to "루시",
+                RoomLocalStore.KEY_ROOM_ANONYMOUS to false,
+                RoomLocalStore.KEY_ROOM_LEVEL to 1,
+                RoomLocalStore.KEY_ROOM_XP to 0,
+                RoomLocalStore.KEY_ROOM_LAST_SETTLED_DATE to "20260608",
+                RoomLocalStore.KEY_ROOM_MY_SLOT to 1,
+                RoomLocalStore.KEY_ROOM_HOST_TIME_ZONE_ID to "Asia/Seoul"
+            )
+        )
+        TrackingSessionManager.handleScreenOff(prefs, millis(utc, 2026, 6, 8, 15, 30))
+
+        val result = TrackingSessionManager.handleUserPresent(
+            prefs,
+            millis(utc, 2026, 6, 8, 16, 30)
+        )
+
+        assertEquals(TrackingSessionUpdate.FINALIZED, result.update)
+        assertEquals(hours(1), prefs.getLong(HyeonSaengLocalStore.totalKey("20260608"), 0L))
+        assertEquals(hours(1), prefs.getLong(RoomLocalStore.roomTotalKey("20260609"), 0L))
+    }
+
+    @Test
     fun recordScreenEvent_storesLastEventLog() {
         val prefs = FakeSharedPreferences()
         val eventAt = millis(2026, 6, 8, 10, 0)
@@ -135,7 +164,18 @@ class TrackingSessionManagerTest {
         hour: Int,
         minute: Int
     ): Long {
-        return Calendar.getInstance(seoul).apply {
+        return millis(seoul, year, month, day, hour, minute)
+    }
+
+    private fun millis(
+        timeZone: TimeZone,
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int,
+        minute: Int
+    ): Long {
+        return Calendar.getInstance(timeZone).apply {
             clear()
             set(year, month - 1, day, hour, minute, 0)
         }.timeInMillis

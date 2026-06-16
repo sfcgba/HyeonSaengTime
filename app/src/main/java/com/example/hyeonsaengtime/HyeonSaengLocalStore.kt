@@ -11,7 +11,8 @@ class HyeonSaengLocalStore(
     ) : this(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
 
     fun getTodayProgress(nowMillis: Long = System.currentTimeMillis()): HyeonSaengProgress {
-        val todayDateKey = DateKeyFormatter.todayKey(nowMillis)
+        val personalTimeZone = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
+        val todayDateKey = DateKeyFormatter.todayKey(nowMillis, personalTimeZone)
         return HyeonSaengProgressCalculator.calculate(
             totalLockedMillis = getTotalMillis(todayDateKey)
         )
@@ -19,7 +20,8 @@ class HyeonSaengLocalStore(
 
     fun getYesterdayResult(nowMillis: Long = System.currentTimeMillis()): DayResult {
         val streakCountAfterUpdate = updateStreakIfNeeded(nowMillis)
-        val yesterdayDateKey = DateKeyFormatter.yesterdayKey(nowMillis)
+        val personalTimeZone = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
+        val yesterdayDateKey = DateKeyFormatter.yesterdayKey(nowMillis, personalTimeZone)
         val progress = HyeonSaengProgressCalculator.calculate(
             totalLockedMillis = getTotalMillis(yesterdayDateKey)
         )
@@ -34,8 +36,9 @@ class HyeonSaengLocalStore(
     fun getStreakCount(): Int = prefs.getInt(KEY_STREAK_COUNT, 0)
 
     fun updateStreakIfNeeded(nowMillis: Long = System.currentTimeMillis()): Int {
-        val todayDateKey = DateKeyFormatter.todayKey(nowMillis)
-        val yesterdayDateKey = DateKeyFormatter.yesterdayKey(nowMillis)
+        val personalTimeZone = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
+        val todayDateKey = DateKeyFormatter.todayKey(nowMillis, personalTimeZone)
+        val yesterdayDateKey = DateKeyFormatter.yesterdayKey(nowMillis, personalTimeZone)
 
         val update = StreakCalculator.calculate(
             todayDateKey = todayDateKey,

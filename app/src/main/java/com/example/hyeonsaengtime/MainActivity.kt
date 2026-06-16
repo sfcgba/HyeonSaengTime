@@ -41,9 +41,14 @@ class MainActivity : ComponentActivity() {
                     when (currentScreen) {
                         AppScreen.HOME -> HomeScreen(
                             onResultClick = { currentScreen = AppScreen.RESULT },
+                            onRoomClick = { currentScreen = AppScreen.ROOM },
                             modifier = Modifier.padding(innerPadding)
                         )
                         AppScreen.RESULT -> ResultScreen(
+                            onBack = { currentScreen = AppScreen.HOME },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                        AppScreen.ROOM -> RoomScreen(
                             onBack = { currentScreen = AppScreen.HOME },
                             modifier = Modifier.padding(innerPadding)
                         )
@@ -56,5 +61,6 @@ class MainActivity : ComponentActivity() {
 
 private enum class AppScreen {
     HOME,
-    RESULT
+    RESULT,
+    ROOM
 }

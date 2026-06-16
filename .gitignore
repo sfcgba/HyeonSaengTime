@@ -17,4 +17,4 @@ local.properties
 
 # Local agent notes and Kotlin tool cache
 .kotlin/
-agent.md
+AGENTS.md

@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun HomeScreen(
     onResultClick: () -> Unit,
+    onRoomClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -69,6 +70,10 @@ fun HomeScreen(
 
         Button(onClick = onResultClick) {
             Text("어제 결과 보기")
+        }
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onRoomClick) {
+            Text("방 보기")
         }
     }
 }
