@@ -27,6 +27,9 @@
   - 자정 이후 앱 화면에 들어오면 어제 결과를 하루 한 번 모달로 표시합니다.
   - 결과 모달은 개인 목표, 방 미션, 방 레벨, 방 내 순위를 함께 보여줍니다.
 
+- 앱 아이콘
+  - `icon frame.svg`의 로고를 Android launcher foreground와 fallback vector icon으로 적용했습니다.
+
 ## 방식과 이유
 
 - 개인 목표/streak 기준은 `HyeonSaengRules.STREAK_REQUIRED_HOURS`의 16시간만 사용합니다.
