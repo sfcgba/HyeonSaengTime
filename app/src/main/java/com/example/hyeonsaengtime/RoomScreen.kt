@@ -1,273 +1,324 @@
 package com.example.hyeonsaengtime
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengBackground
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengBorder
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengPrimary
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengPrimarySoft
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengSurface
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengText
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengTextMuted
 
 @Composable
 fun RoomScreen(
     onBack: () -> Unit,
+    onCreated: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val roomStore = remember(context) { RoomLocalStore(context) }
-    var roomResult by remember {
-        mutableStateOf<RoomOverviewResult>(roomStore.getRoomOverview())
+    val settingsStore = remember(context) { HyeonSaengSettingsStore(context) }
+    val settings = remember(settingsStore) { settingsStore.getSettings() }
+
+    if (roomStore.isRoomCreated()) {
+        RoomAlreadyCreatedContent(onBack = onBack, modifier = modifier)
+        return
     }
 
-    LaunchedEffect(roomStore, roomResult::class) {
-        if (roomResult !is RoomOverviewResult.Created) return@LaunchedEffect
-
-        while (true) {
-            roomResult = roomStore.getRoomOverview()
-            delay(1000L)
-        }
-    }
-
-    when (val result = roomResult) {
-        RoomOverviewResult.NotCreated -> RoomCreateContent(
-            onBack = onBack,
-            onCreate = { roomName, nickname, isAnonymous ->
-                roomResult = when (roomStore.createRoom(roomName, nickname, isAnonymous)) {
-                    is RoomCreateResult.Created -> roomStore.getRoomOverview()
-                    is RoomCreateResult.Invalid -> roomStore.getRoomOverview()
-                }
-            },
-            modifier = modifier
-        )
-
-        is RoomOverviewResult.Invalid -> RoomInvalidContent(
-            reasons = result.reasons,
-            onBack = onBack,
-            modifier = modifier
-        )
-
-        is RoomOverviewResult.Created -> RoomOverviewContent(
-            overview = result.overview,
-            onBack = onBack,
-            modifier = modifier
-        )
-    }
+    RoomCreateContent(
+        nickname = settings.nickname,
+        onBack = onBack,
+        onCreate = { roomName ->
+            when (roomStore.createRoom(roomName, settings.nickname, isAnonymous = false)) {
+                is RoomCreateResult.Created -> onCreated()
+                is RoomCreateResult.Invalid -> Unit
+            }
+        },
+        modifier = modifier
+    )
 }
 
 @Composable
 private fun RoomCreateContent(
+    nickname: String,
     onBack: () -> Unit,
-    onCreate: (String, String, Boolean) -> Unit,
+    onCreate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var roomName by remember { mutableStateOf(RoomLocalStore.INITIAL_ROOM_NAME) }
-    var nickname by remember { mutableStateOf(RoomLocalStore.INITIAL_NICKNAME) }
-    var isAnonymous by remember { mutableStateOf(false) }
+    var roomName by remember { mutableStateOf("저녁 9시 같이 자기") }
+    var selectedPromise by remember { mutableStateOf(RoomPromise.EveningTogether) }
     val canCreate = roomName.isNotBlank() && nickname.isNotBlank()
 
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(HyeonSaengBackground)
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center
+            .padding(horizontal = 24.dp, vertical = 18.dp)
     ) {
-        Text("방 만들기", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(24.dp))
-
-        OutlinedTextField(
-            value = roomName,
-            onValueChange = { roomName = it },
-            label = { Text("방 이름") },
-            isError = roomName.isBlank(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = nickname,
-            onValueChange = { nickname = it },
-            label = { Text("닉네임") },
-            isError = nickname.isBlank(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(12.dp))
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = isAnonymous,
-                onCheckedChange = { isAnonymous = it }
-            )
-            Text("익명 방")
-        }
-        Spacer(Modifier.height(24.dp))
-
-        Button(
-            onClick = { onCreate(roomName, nickname, isAnonymous) },
-            enabled = canCreate,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("방 생성")
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("홈으로")
-        }
-    }
-}
-
-@Composable
-private fun RoomInvalidContent(
-    reasons: List<String>,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("방 데이터 확인 필요", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            reasons.joinToString(", "),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.height(24.dp))
-        OutlinedButton(onClick = onBack) {
-            Text("홈으로")
-        }
-    }
-}
-
-@Composable
-private fun RoomOverviewContent(
-    overview: RoomOverview,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp)
-    ) {
-        Text(overview.state.roomName, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "오늘 내 현생시간 ${formatHyeonSaengDuration(overview.personalTodayMillis)}",
-            style = MaterialTheme.typography.bodyLarge
-        )
-        if (overview.personalTimeZoneId != overview.state.hostTimeZoneId) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "방 기준 ${formatHyeonSaengDuration(overview.roomTodayMillis)}",
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Lv.${overview.state.level} / XP ${RoomLevelCalculator.xpInCurrentLevel(overview.state.xp)}/${HyeonSaengRules.ROOM_XP_PER_LEVEL}",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(Modifier.height(24.dp))
-
-        Text("오늘 미션", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "${if (overview.todayMission.isMet) "현재 달성" else "진행 중"} - ${overview.todayMission.title}",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.height(24.dp))
-
-        Text("어제 정산", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "${if (overview.settlement.mission.isMet) "달성" else "미달성"} - ${overview.settlement.mission.title}",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            if (overview.settlement.wasApplied) {
-                "어제 정산 XP ${formatXpDelta(overview.settlement.appliedXpDelta)}"
-            } else {
-                "어제 정산 완료"
-            },
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.height(24.dp))
-
-        Text("오늘 방 현황", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        overview.todayMembers.chunked(4).forEach { rowMembers ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowMembers.forEach { member ->
-                    RoomMemberCard(
-                        member = member,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+            TextButton(onClick = onBack, modifier = Modifier.width(64.dp)) {
+                Text("뒤로")
             }
-            Spacer(Modifier.height(8.dp))
+            Text(
+                "방 만들기",
+                color = HyeonSaengText,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(64.dp))
         }
-        Spacer(Modifier.height(16.dp))
-        OutlinedButton(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("홈으로")
-        }
-    }
-}
 
-@Composable
-private fun RoomMemberCard(
-    member: RoomMember,
-    modifier: Modifier = Modifier
-) {
-    Card(modifier = modifier) {
+        Spacer(Modifier.height(20.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(HyeonSaengPrimarySoft, RoundedCornerShape(30.dp))
+                .padding(28.dp)
         ) {
             Text(
-                member.displayName,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall
+                "함께 쌓기",
+                color = HyeonSaengPrimary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(16.dp))
             Text(
-                formatRemainingDuration(member.hyeonsaengMillis),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall
+                "랭킹 없이,\n같은 시간을 나란히 쌓아요.",
+                color = HyeonSaengText,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Medium
             )
+        }
+
+        Spacer(Modifier.height(30.dp))
+        Text(
+            "방 이름",
+            color = HyeonSaengTextMuted,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = roomName,
+            onValueChange = { roomName = it },
+            singleLine = true,
+            isError = roomName.isBlank(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            shape = RoundedCornerShape(999.dp),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(28.dp))
+        Text(
+            "오늘의 작은 약속",
+            color = HyeonSaengTextMuted,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.height(12.dp))
+        RoomPromiseGrid(
+            selected = selectedPromise,
+            onSelected = { selectedPromise = it }
+        )
+
+        Spacer(Modifier.height(30.dp))
+        InviteCodeCard()
+
+        Spacer(Modifier.height(120.dp))
+        Button(
+            onClick = { onCreate(roomName) },
+            enabled = canCreate,
+            colors = ButtonDefaults.buttonColors(containerColor = HyeonSaengPrimary),
+            shape = RoundedCornerShape(999.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
+        ) {
+            Text("방 만들기", style = MaterialTheme.typography.titleMedium)
+        }
+        TextButton(
+            onClick = {},
+            enabled = false,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            Text("이미 코드를 받았다면 참여하기")
         }
     }
 }
 
-private fun formatXpDelta(value: Int): String {
-    return if (value > 0) "+$value" else value.toString()
+@Composable
+private fun RoomPromiseGrid(
+    selected: RoomPromise,
+    onSelected: (RoomPromise) -> Unit
+) {
+    RoomPromise.values().toList().chunked(2).forEach { rowItems ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            rowItems.forEach { promise ->
+                PromiseChip(
+                    promise = promise,
+                    selected = selected == promise,
+                    onClick = { onSelected(promise) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun PromiseChip(
+    promise: RoomPromise,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TextButton(
+        onClick = onClick,
+        shape = RoundedCornerShape(999.dp),
+        colors = ButtonDefaults.textButtonColors(
+            containerColor = if (selected) HyeonSaengPrimarySoft else HyeonSaengSurface,
+            contentColor = if (selected) HyeonSaengPrimary else HyeonSaengTextMuted
+        ),
+        modifier = modifier
+            .height(62.dp)
+            .border(
+                width = 1.dp,
+                color = if (selected) HyeonSaengPrimary else HyeonSaengBorder,
+                shape = RoundedCornerShape(999.dp)
+            )
+    ) {
+        Text(
+            promise.label,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun InviteCodeCard() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HyeonSaengSurface, RoundedCornerShape(24.dp))
+            .border(1.dp, HyeonSaengBorder, RoundedCornerShape(24.dp))
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "초대 코드",
+                color = HyeonSaengTextMuted,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "QUIET",
+                color = HyeonSaengText,
+                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.headlineMedium
+            )
+        }
+        Button(
+            onClick = {},
+            colors = ButtonDefaults.buttonColors(containerColor = HyeonSaengBackground),
+            shape = RoundedCornerShape(999.dp)
+        ) {
+            Text("복사", color = HyeonSaengPrimary)
+        }
+    }
+}
+
+@Composable
+private fun RoomAlreadyCreatedContent(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(HyeonSaengBackground)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(HyeonSaengSurface, RoundedCornerShape(28.dp))
+                .padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "이미 방이 있어요",
+                color = HyeonSaengText,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "홈에서 방 현황을 볼 수 있어요",
+                color = HyeonSaengTextMuted,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = onBack,
+                colors = ButtonDefaults.buttonColors(containerColor = HyeonSaengPrimary),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("홈으로")
+            }
+        }
+    }
+}
+
+private enum class RoomPromise(val label: String) {
+    EveningTogether("저녁 함께 1h"),
+    BeforeSleep("잠들기 전 2h"),
+    WeekendMorning("주말 오전 3h"),
+    Custom("직접 정하기")
 }

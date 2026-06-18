@@ -1,17 +1,46 @@
 package com.example.hyeonsaengtime
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengBackground
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengPrimary
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengSurface
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengText
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengTextMuted
 
 @Composable
 fun SettingsScreen(
@@ -22,106 +51,154 @@ fun SettingsScreen(
     val settingsStore = remember(context) { HyeonSaengSettingsStore(context) }
     val initialSettings = remember(settingsStore) { settingsStore.getSettings() }
 
-    var dailyGoalText by remember { mutableStateOf(initialSettings.dailyGoalHours.toString()) }
     var nickname by remember { mutableStateOf(initialSettings.nickname) }
-    var isAnonymous by remember { mutableStateOf(initialSettings.isAnonymous) }
+    var isRoomAnonymous by remember { mutableStateOf(initialSettings.isRoomAnonymous) }
     var extraNotificationsEnabled by remember {
         mutableStateOf(initialSettings.extraNotificationsEnabled)
     }
     var message by remember { mutableStateOf("") }
 
-    val parsedDailyGoal = dailyGoalText.toIntOrNull()
-    val canSave = parsedDailyGoal != null && nickname.isNotBlank()
+    val canSave = nickname.isNotBlank()
 
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(HyeonSaengBackground)
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center
+            .padding(horizontal = 24.dp, vertical = 18.dp)
     ) {
-        Text("설정", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(24.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBack, modifier = Modifier.width(64.dp)) {
+                Text("뒤로")
+            }
+            Text(
+                "설정",
+                color = HyeonSaengText,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(64.dp))
+        }
 
-        OutlinedTextField(
-            value = dailyGoalText,
-            onValueChange = { value -> dailyGoalText = value.filter { it.isDigit() } },
-            label = { Text("하루 목표") },
-            suffix = { Text("시간") },
-            singleLine = true,
-            isError = parsedDailyGoal == null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Number,
-                imeAction = ImeAction.Next
-            ),
-            supportingText = {
-                Text("${HyeonSaengSettingsStore.MIN_DAILY_GOAL_HOURS}-${HyeonSaengSettingsStore.MAX_DAILY_GOAL_HOURS}시간 사이로 저장돼요")
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(28.dp))
+        SettingsSectionTitle("개인")
+        SettingsCard {
+            OutlinedTextField(
+                value = nickname,
+                onValueChange = { nickname = it },
+                label = { Text("닉네임") },
+                singleLine = true,
+                isError = nickname.isBlank(),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "목표 시간은 16시간으로 고정돼요",
+                color = HyeonSaengTextMuted,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
 
-        OutlinedTextField(
-            value = nickname,
-            onValueChange = { nickname = it },
-            label = { Text("닉네임") },
-            singleLine = true,
-            isError = nickname.isBlank(),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(28.dp))
+        SettingsSectionTitle("방")
+        SettingsCard {
+            SettingSwitchRow(
+                title = "방에서 익명으로 보이기",
+                description = if (initialSettings.isRoomCreated) {
+                    "방장 표시 설정"
+                } else {
+                    "방을 만들면 사용할 수 있어요"
+                },
+                checked = isRoomAnonymous,
+                enabled = initialSettings.isRoomCreated,
+                onCheckedChange = { isRoomAnonymous = it }
+            )
+        }
 
-        SettingSwitchRow(
-            title = "익명 표시",
-            checked = isAnonymous,
-            onCheckedChange = { isAnonymous = it }
-        )
-        Spacer(Modifier.height(8.dp))
-        SettingSwitchRow(
-            title = "알림",
-            checked = extraNotificationsEnabled,
-            onCheckedChange = { extraNotificationsEnabled = it }
-        )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(28.dp))
+        SettingsSectionTitle("알림")
+        SettingsCard {
+            SettingSwitchRow(
+                title = "복귀 알림",
+                description = "잠금해제 후 조용한 격려",
+                checked = extraNotificationsEnabled,
+                enabled = true,
+                onCheckedChange = { extraNotificationsEnabled = it }
+            )
+        }
 
+        Spacer(Modifier.height(36.dp))
         Button(
             onClick = {
-                val goal = parsedDailyGoal ?: HyeonSaengRules.STREAK_REQUIRED_HOURS
-                settingsStore.saveDailyGoalHours(goal)
-                val profileSaved = settingsStore.saveProfile(nickname, isAnonymous)
+                val nicknameSaved = settingsStore.saveNickname(nickname)
+                if (initialSettings.isRoomCreated) {
+                    settingsStore.saveRoomAnonymous(isRoomAnonymous)
+                }
                 settingsStore.saveExtraNotificationsEnabled(extraNotificationsEnabled)
-                dailyGoalText = settingsStore.getDailyGoalHours().toString()
-                message = if (profileSaved) "설정을 저장했어요" else "닉네임을 확인해 주세요"
+                message = if (nicknameSaved) "설정을 저장했어요" else "닉네임을 확인해 주세요"
             },
             enabled = canSave,
-            modifier = Modifier.fillMaxWidth()
+            colors = ButtonDefaults.buttonColors(containerColor = HyeonSaengPrimary),
+            shape = RoundedCornerShape(999.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(58.dp)
         ) {
-            Text("저장")
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("홈으로")
+            Text("저장", style = MaterialTheme.typography.titleMedium)
         }
 
         if (message.isNotBlank()) {
             Spacer(Modifier.height(16.dp))
             Text(
                 text = message,
+                color = HyeonSaengTextMuted,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
 }
 
 @Composable
+private fun SettingsSectionTitle(text: String) {
+    Text(
+        text = text,
+        color = HyeonSaengTextMuted,
+        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.bodyMedium
+    )
+    Spacer(Modifier.height(10.dp))
+}
+
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = HyeonSaengSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(22.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
 private fun SettingSwitchRow(
     title: String,
+    description: String,
     checked: Boolean,
+    enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
@@ -129,9 +206,22 @@ private fun SettingSwitchRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                color = HyeonSaengText,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                description,
+                color = HyeonSaengTextMuted,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
         Switch(
             checked = checked,
+            enabled = enabled,
             onCheckedChange = onCheckedChange
         )
     }

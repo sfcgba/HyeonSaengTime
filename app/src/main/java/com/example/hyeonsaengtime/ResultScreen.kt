@@ -2,12 +2,33 @@ package com.example.hyeonsaengtime
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,14 +36,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-
-private val ResultBackground = Color(0xFFD3DAD5)
-private val ResultCardColor = Color(0xFFFFFCF7)
-private val ResultPanelColor = Color(0xFFF7F4F0)
-private val ResultAccent = Color(0xFF2F5E5A)
-private val ResultMutedText = Color(0xFF667A78)
-private val ResultBadgeColor = Color(0xFFF5C46C)
-private val ResultSoftBadgeColor = Color(0xFFFCE6BA)
+import androidx.compose.ui.window.Dialog
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengAccent
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengAccentSoft
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengBackground
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengPrimary
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengSurface
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengSurfaceSoft
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengText
+import com.example.hyeonsaengtime.ui.theme.HyeonSaengTextMuted
 
 @Composable
 fun ResultScreen(
@@ -44,120 +66,150 @@ fun ResultScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ResultBackground)
+            .background(HyeonSaengBackground)
             .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
         val result = dayResult
         if (result == null) {
             Text("결과를 불러오는 중", style = MaterialTheme.typography.bodyLarge)
-            return@Box
-        }
-
-        val roomOverview = (roomResult as? RoomOverviewResult.Created)?.overview
-        val roomSummary = roomOverview?.let { overview ->
-            RoomResultSummaryCalculator.summarize(
-                members = overview.yesterdayMembers,
-                dailyGoalMillis = result.streakRequiredMillis
+        } else {
+            DailyRecapContent(
+                dayResult = result,
+                roomResult = roomResult,
+                onDismiss = onBack,
+                modifier = Modifier.fillMaxWidth()
             )
         }
+    }
+}
 
-        Surface(
+@Composable
+fun DailyRecapDialog(
+    dayResult: DayResult,
+    roomResult: RoomOverviewResult,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        DailyRecapContent(
+            dayResult = dayResult,
+            roomResult = roomResult,
+            onDismiss = onDismiss,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun DailyRecapContent(
+    dayResult: DayResult,
+    roomResult: RoomOverviewResult,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val roomOverview = (roomResult as? RoomOverviewResult.Created)?.overview
+    val roomSummary = roomOverview?.let { overview ->
+        RoomResultSummaryCalculator.summarize(
+            members = overview.yesterdayMembers,
+            dailyGoalMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS
+        )
+    }
+
+    Surface(
+        modifier = modifier.heightIn(max = 720.dp),
+        shape = RoundedCornerShape(32.dp),
+        color = HyeonSaengSurface,
+        shadowElevation = 14.dp
+    ) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-            shape = RoundedCornerShape(32.dp),
-            color = ResultCardColor,
-            shadowElevation = 10.dp
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onBack) {
-                        Text("닫기")
-                    }
+                TextButton(onClick = onDismiss) {
+                    Text("닫기")
                 }
+            }
 
-                Text(
-                    "어제의 현생 시간",
-                    color = ResultMutedText,
-                    style = MaterialTheme.typography.bodyLarge
+            Text(
+                "어제의 현생 시간",
+                color = HyeonSaengTextMuted,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                formatHourMinuteDuration(dayResult.hyeonsaengMillis),
+                color = HyeonSaengPrimary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.displayLarge
+            )
+            Spacer(Modifier.height(12.dp))
+            ResultBadge(
+                text = if (dayResult.isStreakRequirementMet) {
+                    "연속 ${dayResult.streakCountAfterUpdate}일"
+                } else {
+                    "연속 기록 쉬어감"
+                },
+                soft = true
+            )
+            Spacer(Modifier.height(28.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ResultMetricPanel(
+                    title = "개인 목표",
+                    value = "${HyeonSaengRules.STREAK_REQUIRED_HOURS}:00",
+                    badge = if (dayResult.isStreakRequirementMet) "달성" else "미달성",
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    formatHourMinuteDuration(result.hyeonsaengMillis),
-                    color = ResultAccent,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.displayLarge
-                )
-                Spacer(Modifier.height(12.dp))
-                ResultBadge(
-                    text = if (result.isStreakRequirementMet) {
-                        "연속 ${result.streakCountAfterUpdate}일"
-                    } else {
-                        "연속 기록 쉬어감"
+                ResultMetricPanel(
+                    title = "방 미션",
+                    value = roomOverview?.settlement?.mission?.title ?: "방 없음",
+                    badge = when {
+                        roomOverview == null -> "대기"
+                        roomOverview.settlement.mission.isMet -> "달성"
+                        else -> "미달성"
                     },
-                    soft = true
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.height(28.dp))
+            }
+            Spacer(Modifier.height(20.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ResultMetricPanel(
-                        title = "개인 목표",
-                        value = "${result.streakRequiredHours}:00",
-                        badge = if (result.isStreakRequirementMet) "달성" else "진행",
-                        modifier = Modifier.weight(1f)
-                    )
-                    ResultMetricPanel(
-                        title = "방 미션",
-                        value = roomOverview?.settlement?.mission?.title ?: "방 없음",
-                        badge = when {
-                            roomOverview == null -> "대기"
-                            roomOverview.settlement.mission.isMet -> "달성"
-                            else -> "미달성"
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Spacer(Modifier.height(20.dp))
+            if (roomOverview == null) {
+                ResultPlaceholderPanel(
+                    title = "방 Lv.",
+                    text = "방을 만들면 진행도가 표시돼요"
+                )
+            } else {
+                RoomLevelPanel(roomOverview)
+            }
+            Spacer(Modifier.height(20.dp))
 
-                if (roomOverview == null) {
-                    ResultPlaceholderPanel(
-                        title = "방 Lv.",
-                        text = "방을 만들면 진행도가 표시돼요"
-                    )
-                } else {
-                    RoomLevelPanel(roomOverview)
-                }
-                Spacer(Modifier.height(20.dp))
+            if (roomSummary == null) {
+                ResultPlaceholderPanel(
+                    title = "방 내 순위",
+                    text = "방을 만들면 순위가 표시돼요"
+                )
+            } else {
+                RoomRankPanel(roomSummary)
+            }
+            Spacer(Modifier.height(24.dp))
 
-                if (roomSummary == null) {
-                    ResultPlaceholderPanel(
-                        title = "방 내 순위",
-                        text = "방을 만들면 순위가 표시돼요"
-                    )
-                } else {
-                    RoomRankPanel(roomSummary)
-                }
-                Spacer(Modifier.height(24.dp))
-
-                Button(
-                    onClick = onBack,
-                    colors = ButtonDefaults.buttonColors(containerColor = ResultAccent),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                ) {
-                    Text("오늘도 시작하기", style = MaterialTheme.typography.titleMedium)
-                }
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = HyeonSaengPrimary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text("오늘도 시작하기", style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -173,8 +225,8 @@ private fun ResultMetricPanel(
     Column(
         modifier = modifier
             .heightIn(min = 112.dp)
-            .background(ResultPanelColor, RoundedCornerShape(28.dp))
-            .padding(20.dp)
+            .background(HyeonSaengSurfaceSoft, RoundedCornerShape(28.dp))
+            .padding(18.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -183,9 +235,9 @@ private fun ResultMetricPanel(
         ) {
             Text(
                 title,
-                color = Color(0xFF2F3E3E),
+                color = HyeonSaengText,
                 fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -194,7 +246,7 @@ private fun ResultMetricPanel(
         Spacer(Modifier.height(18.dp))
         Text(
             value,
-            color = Color(0xFF2F3E3E),
+            color = HyeonSaengText,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleMedium,
             maxLines = 2,
@@ -212,7 +264,7 @@ private fun RoomLevelPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ResultPanelColor, RoundedCornerShape(24.dp))
+            .background(HyeonSaengSurfaceSoft, RoundedCornerShape(24.dp))
             .padding(20.dp)
     ) {
         Row(
@@ -223,14 +275,14 @@ private fun RoomLevelPanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "방 Lv.${overview.state.level}",
-                    color = Color(0xFF2F3E3E),
+                    color = HyeonSaengText,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
                     "$xpInLevel/${HyeonSaengRules.ROOM_XP_PER_LEVEL}",
-                    color = ResultMutedText,
+                    color = HyeonSaengTextMuted,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -246,8 +298,8 @@ private fun RoomLevelPanel(
         Spacer(Modifier.height(14.dp))
         LinearProgressIndicator(
             progress = { progress.coerceIn(0f, 1f) },
-            color = ResultAccent,
-            trackColor = Color(0xFFECE7DE),
+            color = HyeonSaengPrimary,
+            trackColor = HyeonSaengBackground,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp)
@@ -264,7 +316,7 @@ private fun RoomRankPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ResultPanelColor, RoundedCornerShape(28.dp))
+            .background(HyeonSaengSurfaceSoft, RoundedCornerShape(28.dp))
             .clickable { expanded = !expanded }
             .padding(20.dp)
     ) {
@@ -275,13 +327,13 @@ private fun RoomRankPanel(
         ) {
             Text(
                 "방 내 순위",
-                color = Color(0xFF2F3E3E),
+                color = HyeonSaengText,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
                 "${summary.myRank}위 /${summary.totalMembers}명 ${if (expanded) "접기" else "보기"}",
-                color = ResultAccent,
+                color = HyeonSaengPrimary,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleLarge
             )
@@ -308,14 +360,14 @@ private fun RoomComparisonRow(
     ) {
         Text(
             "${comparison.rank}위",
-            color = ResultAccent,
+            color = HyeonSaengPrimary,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.width(44.dp)
         )
         Text(
             comparison.member.displayName,
-            color = Color(0xFF2F3E3E),
+            color = HyeonSaengText,
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -323,7 +375,7 @@ private fun RoomComparisonRow(
         )
         Text(
             formatRemainingDuration(comparison.member.hyeonsaengMillis),
-            color = ResultMutedText,
+            color = HyeonSaengTextMuted,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.width(76.dp)
         )
@@ -339,17 +391,17 @@ private fun ResultPlaceholderPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ResultPanelColor, RoundedCornerShape(24.dp))
+            .background(HyeonSaengSurfaceSoft, RoundedCornerShape(24.dp))
             .padding(20.dp)
     ) {
         Text(
             title,
-            color = Color(0xFF2F3E3E),
+            color = HyeonSaengText,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(Modifier.height(8.dp))
-        Text(text, color = ResultMutedText, style = MaterialTheme.typography.bodyMedium)
+        Text(text, color = HyeonSaengTextMuted, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -361,14 +413,14 @@ private fun ResultBadge(
     Box(
         modifier = Modifier
             .background(
-                color = if (soft) ResultSoftBadgeColor else ResultBadgeColor,
+                color = if (soft) HyeonSaengAccentSoft else HyeonSaengAccent,
                 shape = RoundedCornerShape(999.dp)
             )
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
             text = text,
-            color = Color(0xFF263B3A),
+            color = HyeonSaengText,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
