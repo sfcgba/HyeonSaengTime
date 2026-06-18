@@ -7,6 +7,12 @@ fun formatHyeonSaengDuration(millis: Long): String {
     return "${h}시간 ${m}분 ${s}초"
 }
 
+fun formatHourMinuteDuration(millis: Long): String {
+    val h = millis / 1000 / 3600
+    val m = (millis / 1000 % 3600) / 60
+    return "${h}h ${m}m"
+}
+
 fun formatRemainingDuration(millis: Long): String {
     val h = millis / 1000 / 3600
     val m = (millis / 1000 % 3600) / 60

@@ -301,6 +301,44 @@ class RoomSimulationTest {
         assertEquals(hours(6), overview.todayMembers.first { it.isMe }.hyeonsaengMillis)
     }
 
+    @Test
+    fun roomOverview_exposesYesterdayMembersForResultSummary() {
+        val now = millis(seoul, 2026, 6, 10, 9, 0)
+        val prefs = roomPrefs(
+            RoomLocalStore.KEY_ROOM_LAST_SETTLED_DATE to "20260608",
+            RoomLocalStore.roomTotalKey("20260609") to hours(4)
+        )
+        val store = RoomLocalStore(prefs)
+
+        val result = store.getRoomOverview(now)
+
+        val overview = (result as RoomOverviewResult.Created).overview
+        assertEquals("20260609", overview.roomYesterdayDateKey)
+        assertEquals(HyeonSaengRules.ROOM_MEMBER_COUNT, overview.yesterdayMembers.size)
+        assertEquals(hours(4), overview.yesterdayMembers.first { it.isMe }.hyeonsaengMillis)
+    }
+
+    @Test
+    fun roomResultSummary_ranksMembersAndClassifiesGoalStages() {
+        val members = listOf(
+            RoomMember(slot = 1, displayName = "나", hyeonsaengMillis = hours(18), isMe = true),
+            RoomMember(slot = 2, displayName = "진행", hyeonsaengMillis = hours(10), isMe = false),
+            RoomMember(slot = 3, displayName = "시작", hyeonsaengMillis = 0L, isMe = false),
+            RoomMember(slot = 4, displayName = "낮음", hyeonsaengMillis = hours(5), isMe = false)
+        )
+
+        val summary = RoomResultSummaryCalculator.summarize(
+            members = members,
+            dailyGoalMillis = hours(16)
+        )
+
+        assertEquals(1, summary.myRank)
+        assertEquals(4, summary.totalMembers)
+        assertEquals(MemberGoalStage.ACHIEVED, summary.comparisons[0].stage)
+        assertEquals(MemberGoalStage.IN_PROGRESS, summary.comparisons[1].stage)
+        assertEquals(MemberGoalStage.START, summary.comparisons.last().stage)
+    }
+
     private fun missionIsMet(
         missions: List<RoomMissionResult>,
         id: RoomMissionId

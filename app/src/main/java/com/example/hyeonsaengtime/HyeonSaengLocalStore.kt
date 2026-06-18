@@ -13,8 +13,10 @@ class HyeonSaengLocalStore(
     fun getTodayProgress(nowMillis: Long = System.currentTimeMillis()): HyeonSaengProgress {
         val personalTimeZone = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
         val todayDateKey = DateKeyFormatter.todayKey(nowMillis, personalTimeZone)
+        val dailyGoalHours = HyeonSaengSettingsStore(prefs).getDailyGoalHours()
         return HyeonSaengProgressCalculator.calculate(
-            totalLockedMillis = getTotalMillis(todayDateKey)
+            totalLockedMillis = getTotalMillis(todayDateKey),
+            streakRequiredHours = dailyGoalHours
         )
     }
 
@@ -22,8 +24,10 @@ class HyeonSaengLocalStore(
         val streakCountAfterUpdate = updateStreakIfNeeded(nowMillis)
         val personalTimeZone = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
         val yesterdayDateKey = DateKeyFormatter.yesterdayKey(nowMillis, personalTimeZone)
+        val dailyGoalHours = HyeonSaengSettingsStore(prefs).getDailyGoalHours()
         val progress = HyeonSaengProgressCalculator.calculate(
-            totalLockedMillis = getTotalMillis(yesterdayDateKey)
+            totalLockedMillis = getTotalMillis(yesterdayDateKey),
+            streakRequiredHours = dailyGoalHours
         )
 
         return DayResult(
@@ -39,11 +43,12 @@ class HyeonSaengLocalStore(
         val personalTimeZone = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
         val todayDateKey = DateKeyFormatter.todayKey(nowMillis, personalTimeZone)
         val yesterdayDateKey = DateKeyFormatter.yesterdayKey(nowMillis, personalTimeZone)
+        val dailyGoalMillis = HyeonSaengSettingsStore(prefs).getDailyGoalMillis()
 
         val update = StreakCalculator.calculate(
             todayDateKey = todayDateKey,
             yesterdayTotalMillis = getTotalMillis(yesterdayDateKey),
-            requiredMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
+            requiredMillis = dailyGoalMillis,
             currentStreakCount = getStreakCount(),
             lastCheckDateKey = getStreakLastDateKey()
         )

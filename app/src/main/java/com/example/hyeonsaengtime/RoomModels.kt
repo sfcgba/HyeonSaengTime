@@ -67,6 +67,7 @@ data class RoomOverview(
     val personalTodayMillis: Long,
     val roomTodayMillis: Long,
     val todayMembers: List<RoomMember>,
+    val yesterdayMembers: List<RoomMember>,
     val todayMission: RoomMissionResult,
     val settlement: RoomSettlement
 )

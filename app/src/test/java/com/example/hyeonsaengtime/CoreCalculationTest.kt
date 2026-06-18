@@ -126,6 +126,25 @@ class CoreCalculationTest {
     }
 
     @Test
+    fun localStore_usesSavedDailyGoalForTodayProgress() {
+        val now = millis(seoul, 2026, 6, 10, 12, 0)
+        val prefs = CoreFakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengSettingsStore.KEY_DAILY_GOAL_HOURS to 18,
+                HyeonSaengLocalStore.totalKey("20260610") to hours(17)
+            )
+        )
+        val store = HyeonSaengLocalStore(prefs)
+
+        val progress = store.getTodayProgress(now)
+
+        assertEquals(18, progress.streakRequiredHours)
+        assertEquals(hours(18), progress.streakRequiredMillis)
+        assertFalse(progress.isStreakRequirementMet)
+        assertEquals(hours(1), progress.remainingMillisForStreak)
+    }
+
+    @Test
     fun localStore_readsYesterdayResultAndUpdatesStreak() {
         val now = millis(seoul, 2026, 6, 10, 9, 0)
         val prefs = CoreFakeSharedPreferences(
@@ -174,6 +193,25 @@ class CoreCalculationTest {
     }
 
     @Test
+    fun localStore_usesSavedDailyGoalForYesterdayStreakUpdate() {
+        val now = millis(seoul, 2026, 6, 10, 9, 0)
+        val prefs = CoreFakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengSettingsStore.KEY_DAILY_GOAL_HOURS to 18,
+                HyeonSaengLocalStore.totalKey("20260609") to hours(17),
+                HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
+            )
+        )
+        val store = HyeonSaengLocalStore(prefs)
+
+        val result = store.getYesterdayResult(now)
+
+        assertEquals(hours(18), result.streakRequiredMillis)
+        assertFalse(result.isStreakRequirementMet)
+        assertEquals(0, result.streakCountAfterUpdate)
+    }
+
+    @Test
     fun localStore_updatesStreakOncePerDay() {
         val now = millis(seoul, 2026, 6, 10, 9, 0)
         val prefs = CoreFakeSharedPreferences(
@@ -210,6 +248,38 @@ class CoreCalculationTest {
             "20260610",
             prefs.getString(HyeonSaengLocalStore.KEY_STREAK_LAST_DATE, null)
         )
+    }
+
+    @Test
+    fun settingsStore_savesProfileAndExistingRoomProfile() {
+        val prefs = CoreFakeSharedPreferences(
+            mapOf<String, Any>(
+                RoomLocalStore.KEY_ROOM_CREATED to true,
+                RoomLocalStore.KEY_ROOM_NICKNAME to "기존",
+                RoomLocalStore.KEY_ROOM_ANONYMOUS to false
+            )
+        )
+        val settingsStore = HyeonSaengSettingsStore(prefs)
+
+        val saved = settingsStore.saveProfile(" 새닉 ", true)
+
+        assertTrue(saved)
+        assertEquals("새닉", prefs.getString(HyeonSaengSettingsStore.KEY_USER_NICKNAME, null))
+        assertTrue(prefs.getBoolean(HyeonSaengSettingsStore.KEY_USER_ANONYMOUS, false))
+        assertEquals("새닉", prefs.getString(RoomLocalStore.KEY_ROOM_NICKNAME, null))
+        assertTrue(prefs.getBoolean(RoomLocalStore.KEY_ROOM_ANONYMOUS, false))
+    }
+
+    @Test
+    fun settingsStore_rejectsBlankNicknameAndClampsDailyGoal() {
+        val prefs = CoreFakeSharedPreferences()
+        val settingsStore = HyeonSaengSettingsStore(prefs)
+
+        settingsStore.saveDailyGoalHours(99)
+
+        assertEquals(24, settingsStore.getDailyGoalHours())
+        assertFalse(settingsStore.saveProfile("  ", true))
+        assertEquals(RoomLocalStore.INITIAL_NICKNAME, settingsStore.getSettings().nickname)
     }
 
     private fun millis(

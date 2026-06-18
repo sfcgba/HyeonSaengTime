@@ -147,6 +147,7 @@ class RoomLocalStore(
                     state = stateAfterSettlement,
                     useRoomTotal = true
                 ),
+                yesterdayMembers = yesterdayMembers,
                 todayMission = todayMission,
                 settlement = settlement
             )

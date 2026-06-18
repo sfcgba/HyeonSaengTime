@@ -157,6 +157,28 @@ class TrackingSessionManagerTest {
         assertEquals(eventAt, prefs.getLong(TrackingSessionManager.KEY_LAST_SCREEN_EVENT_AT, 0L))
     }
 
+    @Test
+    fun unlockNotificationPolicy_onlyNotifiesForFinalizedSessionsWhenEnabled() {
+        assertTrue(
+            UnlockNotificationPolicy.shouldNotify(
+                TrackingSessionResult(TrackingSessionUpdate.FINALIZED),
+                extraNotificationsEnabled = true
+            )
+        )
+        assertFalse(
+            UnlockNotificationPolicy.shouldNotify(
+                TrackingSessionResult(TrackingSessionUpdate.FINALIZED),
+                extraNotificationsEnabled = false
+            )
+        )
+        assertFalse(
+            UnlockNotificationPolicy.shouldNotify(
+                TrackingSessionResult(TrackingSessionUpdate.IGNORED),
+                extraNotificationsEnabled = true
+            )
+        )
+    }
+
     private fun millis(
         year: Int,
         month: Int,
