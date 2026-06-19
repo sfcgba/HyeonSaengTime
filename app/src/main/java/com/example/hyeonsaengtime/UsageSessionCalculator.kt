@@ -1,9 +1,6 @@
 package com.example.hyeonsaengtime
 
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 import java.util.TimeZone
 
 data class DailyDuration(
@@ -30,7 +27,7 @@ object UsageSessionCalculator {
 
             if (durationMillis > 0L) {
                 sessions += DailyDuration(
-                    dateKey = dateKey(cursor, timeZone),
+                    dateKey = DateKeyFormatter.dateKey(cursor, timeZone),
                     durationMillis = durationMillis
                 )
             }
@@ -53,9 +50,4 @@ object UsageSessionCalculator {
         return calendar.timeInMillis
     }
 
-    private fun dateKey(millis: Long, timeZone: TimeZone): String {
-        return SimpleDateFormat("yyyyMMdd", Locale.US).apply {
-            this.timeZone = timeZone
-        }.format(Date(millis))
-    }
 }
