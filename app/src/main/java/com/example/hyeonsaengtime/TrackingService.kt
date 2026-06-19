@@ -20,7 +20,9 @@ class TrackingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            createNotificationChannel()
+        }
         val prefs = getSharedPreferences(HyeonSaengLocalStore.PREFS_NAME, MODE_PRIVATE)
         HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
 

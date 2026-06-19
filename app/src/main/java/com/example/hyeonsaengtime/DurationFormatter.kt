@@ -2,13 +2,6 @@ package com.example.hyeonsaengtime
 
 import java.util.Locale
 
-fun formatHyeonSaengDuration(millis: Long): String {
-    val h = millis / 1000 / 3600
-    val m = (millis / 1000 % 3600) / 60
-    val s = millis / 1000 % 60
-    return "${h}시간 ${m}분 ${s}초"
-}
-
 fun formatHourMinuteDuration(millis: Long): String {
     val h = millis / 1000 / 3600
     val m = (millis / 1000 % 3600) / 60

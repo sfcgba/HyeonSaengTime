@@ -2,7 +2,6 @@ package com.example.hyeonsaengtime
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengBackground
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengBorder
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengPrimary
-import com.example.hyeonsaengtime.ui.theme.HyeonSaengPrimarySoft
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengSurface
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengText
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengTextMuted
@@ -61,8 +60,8 @@ fun RoomScreen(
     RoomCreateContent(
         nickname = settings.nickname,
         onBack = onBack,
-        onCreate = { roomName ->
-            when (roomStore.createRoom(roomName, settings.nickname, isAnonymous = false)) {
+        onCreate = { roomName, isAnonymous ->
+            when (roomStore.createRoom(roomName, settings.nickname, isAnonymous)) {
                 is RoomCreateResult.Created -> onCreated()
                 is RoomCreateResult.Invalid -> Unit
             }
@@ -75,11 +74,11 @@ fun RoomScreen(
 private fun RoomCreateContent(
     nickname: String,
     onBack: () -> Unit,
-    onCreate: (String) -> Unit,
+    onCreate: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var roomName by remember { mutableStateOf("저녁 9시 같이 자기") }
-    var selectedPromise by remember { mutableStateOf(RoomPromise.EveningTogether) }
+    var roomName by remember { mutableStateOf("") }
+    var isAnonymous by remember { mutableStateOf(false) }
     val canCreate = roomName.isNotBlank() && nickname.isNotBlank()
 
     Column(
@@ -107,28 +106,6 @@ private fun RoomCreateContent(
             Spacer(Modifier.width(64.dp))
         }
 
-        Spacer(Modifier.height(20.dp))
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(HyeonSaengPrimarySoft, RoundedCornerShape(30.dp))
-                .padding(28.dp)
-        ) {
-            Text(
-                "함께 쌓기",
-                color = HyeonSaengPrimary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "랭킹 없이,\n같은 시간을 나란히 쌓아요.",
-                color = HyeonSaengText,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Medium
-            )
-        }
-
         Spacer(Modifier.height(30.dp))
         Text(
             "방 이름",
@@ -141,23 +118,16 @@ private fun RoomCreateContent(
             value = roomName,
             onValueChange = { roomName = it },
             singleLine = true,
-            isError = roomName.isBlank(),
+            placeholder = { Text("방 이름") },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             shape = RoundedCornerShape(999.dp),
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(Modifier.height(28.dp))
-        Text(
-            "오늘의 작은 약속",
-            color = HyeonSaengTextMuted,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.height(12.dp))
-        RoomPromiseGrid(
-            selected = selectedPromise,
-            onSelected = { selectedPromise = it }
+        Spacer(Modifier.height(18.dp))
+        AnonymousSettingCard(
+            checked = isAnonymous,
+            onCheckedChange = { isAnonymous = it }
         )
 
         Spacer(Modifier.height(30.dp))
@@ -165,7 +135,7 @@ private fun RoomCreateContent(
 
         Spacer(Modifier.height(120.dp))
         Button(
-            onClick = { onCreate(roomName) },
+            onClick = { onCreate(roomName, isAnonymous) },
             enabled = canCreate,
             colors = ButtonDefaults.buttonColors(containerColor = HyeonSaengPrimary),
             shape = RoundedCornerShape(999.dp),
@@ -186,55 +156,34 @@ private fun RoomCreateContent(
 }
 
 @Composable
-private fun RoomPromiseGrid(
-    selected: RoomPromise,
-    onSelected: (RoomPromise) -> Unit
+private fun AnonymousSettingCard(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
 ) {
-    RoomPromise.values().toList().chunked(2).forEach { rowItems ->
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            rowItems.forEach { promise ->
-                PromiseChip(
-                    promise = promise,
-                    selected = selected == promise,
-                    onClick = { onSelected(promise) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-    }
-}
-
-@Composable
-private fun PromiseChip(
-    promise: RoomPromise,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    TextButton(
-        onClick = onClick,
-        shape = RoundedCornerShape(999.dp),
-        colors = ButtonDefaults.textButtonColors(
-            containerColor = if (selected) HyeonSaengPrimarySoft else HyeonSaengSurface,
-            contentColor = if (selected) HyeonSaengPrimary else HyeonSaengTextMuted
-        ),
-        modifier = modifier
-            .height(62.dp)
-            .border(
-                width = 1.dp,
-                color = if (selected) HyeonSaengPrimary else HyeonSaengBorder,
-                shape = RoundedCornerShape(999.dp)
-            )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HyeonSaengSurface, RoundedCornerShape(24.dp))
+            .border(1.dp, HyeonSaengBorder, RoundedCornerShape(24.dp))
+            .padding(horizontal = 22.dp, vertical = 18.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            promise.label,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "방 익명 모드",
+                color = HyeonSaengText,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "모든 멤버를 익명으로 표시해요",
+                color = HyeonSaengTextMuted,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
         )
     }
 }
@@ -314,11 +263,4 @@ private fun RoomAlreadyCreatedContent(
             }
         }
     }
-}
-
-private enum class RoomPromise(val label: String) {
-    EveningTogether("저녁 함께 1h"),
-    BeforeSleep("잠들기 전 2h"),
-    WeekendMorning("주말 오전 3h"),
-    Custom("직접 정하기")
 }

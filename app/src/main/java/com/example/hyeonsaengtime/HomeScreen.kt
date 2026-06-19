@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -69,7 +70,7 @@ fun HomeScreen(
             HyeonSaengProgressCalculator.calculate(totalLockedMillis = 0L)
         )
     }
-    var streakCount by remember { mutableStateOf(0) }
+    var streakCount by remember { mutableIntStateOf(0) }
     var isFocusSessionActive by remember { mutableStateOf(localStore.isFocusSessionActive()) }
     var roomResult by remember {
         mutableStateOf<RoomOverviewResult>(roomStore.getRoomOverview())
@@ -247,7 +248,7 @@ private fun MissionCard(mission: RoomMissionResult) {
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "오늘의 미션",
+                    "오늘의 방 미션",
                     color = HyeonSaengTextMuted,
                     style = MaterialTheme.typography.labelMedium
                 )

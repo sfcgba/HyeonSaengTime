@@ -1,6 +1,5 @@
 package com.example.hyeonsaengtime
 
-import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,7 +13,7 @@ class RoomSimulationTest {
 
     @Test
     fun timeZoneStore_initializesPersonalTimeZoneOnce() {
-        val prefs = RoomFakeSharedPreferences()
+        val prefs = FakeSharedPreferences()
 
         val first = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs, seoul)
         val second = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs, utc)
@@ -29,7 +28,7 @@ class RoomSimulationTest {
 
     @Test
     fun roomStore_rejectsBlankRoomNameOrNickname() {
-        val prefs = RoomFakeSharedPreferences()
+        val prefs = FakeSharedPreferences()
         val store = RoomLocalStore(prefs)
 
         val result = store.createRoom(
@@ -46,7 +45,7 @@ class RoomSimulationTest {
     @Test
     fun roomStore_createsRoomWithHostTimeZoneAndStableSlot() {
         val now = millis(seoul, 2026, 6, 10, 12, 0)
-        val prefs = RoomFakeSharedPreferences()
+        val prefs = FakeSharedPreferences()
         val store = RoomLocalStore(prefs)
 
         val result = store.createRoom(
@@ -61,10 +60,29 @@ class RoomSimulationTest {
         assertTrue(store.isRoomCreated())
         assertEquals("방 1", state.roomName)
         assertEquals("루시", state.nickname)
+        assertTrue(state.isAnonymous)
         assertEquals("Asia/Seoul", state.hostTimeZoneId)
         assertTrue(state.mySlot in 1..HyeonSaengRules.ROOM_MEMBER_COUNT)
         assertEquals("20260609", state.lastSettledDateKey)
         assertEquals(state.mySlot, prefs.getInt(RoomLocalStore.KEY_ROOM_MY_SLOT, 0))
+        assertTrue(prefs.getBoolean(RoomLocalStore.KEY_ROOM_ANONYMOUS, false))
+    }
+
+    @Test
+    fun roomStore_migratesLegacyDefaultRoomNameWhenLoadingRoom() {
+        val prefs = roomPrefs(
+            RoomLocalStore.KEY_ROOM_NAME to "저녁 9시 같이 자기"
+        )
+        val store = RoomLocalStore(prefs)
+
+        val result = store.loadRoomState()
+
+        val state = (result as RoomLoadResult.Created).state
+        assertEquals(RoomLocalStore.DEFAULT_ROOM_NAME, state.roomName)
+        assertEquals(
+            RoomLocalStore.DEFAULT_ROOM_NAME,
+            prefs.getString(RoomLocalStore.KEY_ROOM_NAME, null)
+        )
     }
 
     @Test
@@ -95,7 +113,7 @@ class RoomSimulationTest {
 
     @Test
     fun roomStore_returnsInvalidWithoutDeletingBrokenRoomData() {
-        val prefs = RoomFakeSharedPreferences(
+        val prefs = FakeSharedPreferences(
             mapOf<String, Any>(
                 RoomLocalStore.KEY_ROOM_CREATED to true,
                 RoomLocalStore.KEY_ROOM_NAME to "",
@@ -383,7 +401,7 @@ class RoomSimulationTest {
         return missions.first { it.id == id }.isMet
     }
 
-    private fun roomPrefs(vararg overrides: Pair<String, Any>): RoomFakeSharedPreferences {
+    private fun roomPrefs(vararg overrides: Pair<String, Any>): FakeSharedPreferences {
         val baseValues = mutableMapOf<String, Any>(
             RoomLocalStore.KEY_ROOM_CREATED to true,
             RoomLocalStore.KEY_ROOM_NAME to "테스트방",
@@ -396,7 +414,7 @@ class RoomSimulationTest {
             RoomLocalStore.KEY_ROOM_HOST_TIME_ZONE_ID to "Asia/Seoul"
         )
         overrides.forEach { (key, value) -> baseValues[key] = value }
-        return RoomFakeSharedPreferences(baseValues)
+        return FakeSharedPreferences(baseValues)
     }
 
     private fun successMembers(): List<RoomMember> {
@@ -436,116 +454,4 @@ class RoomSimulationTest {
     }
 
     private fun hours(value: Long): Long = value * 60L * 60L * 1000L
-}
-
-private class RoomFakeSharedPreferences(
-    initialValues: Map<String, Any> = emptyMap()
-) : SharedPreferences {
-    private val values = initialValues.toMutableMap()
-
-    override fun getAll(): MutableMap<String, *> = values.toMutableMap()
-
-    override fun getString(key: String?, defValue: String?): String? {
-        return values[key] as? String ?: defValue
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    override fun getStringSet(
-        key: String?,
-        defValues: MutableSet<String>?
-    ): MutableSet<String>? {
-        return (values[key] as? Set<String>)?.toMutableSet() ?: defValues
-    }
-
-    override fun getInt(key: String?, defValue: Int): Int {
-        return values[key] as? Int ?: defValue
-    }
-
-    override fun getLong(key: String?, defValue: Long): Long {
-        return values[key] as? Long ?: defValue
-    }
-
-    override fun getFloat(key: String?, defValue: Float): Float {
-        return values[key] as? Float ?: defValue
-    }
-
-    override fun getBoolean(key: String?, defValue: Boolean): Boolean {
-        return values[key] as? Boolean ?: defValue
-    }
-
-    override fun contains(key: String?): Boolean = values.containsKey(key)
-
-    override fun edit(): SharedPreferences.Editor = FakeEditor()
-
-    override fun registerOnSharedPreferenceChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener?
-    ) = Unit
-
-    override fun unregisterOnSharedPreferenceChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener?
-    ) = Unit
-
-    private inner class FakeEditor : SharedPreferences.Editor {
-        private val changes = mutableMapOf<String, Any?>()
-        private var shouldClear = false
-
-        override fun putString(key: String?, value: String?): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun putStringSet(
-            key: String?,
-            values: MutableSet<String>?
-        ): SharedPreferences.Editor {
-            if (key != null) changes[key] = values?.toSet()
-            return this
-        }
-
-        override fun putInt(key: String?, value: Int): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun putLong(key: String?, value: Long): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun putFloat(key: String?, value: Float): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun remove(key: String?): SharedPreferences.Editor {
-            if (key != null) changes[key] = null
-            return this
-        }
-
-        override fun clear(): SharedPreferences.Editor {
-            shouldClear = true
-            return this
-        }
-
-        override fun commit(): Boolean {
-            apply()
-            return true
-        }
-
-        override fun apply() {
-            if (shouldClear) values.clear()
-            changes.forEach { (key, value) ->
-                if (value == null) {
-                    values.remove(key)
-                } else {
-                    values[key] = value
-                }
-            }
-        }
-    }
 }

@@ -73,13 +73,14 @@ class RoomLocalStore(
             return RoomLoadResult.Invalid(reasons)
         }
 
+        val normalizedRoomName = normalizeLoadedRoomName(requireNotNull(roomName))
         val xp = RoomLevelCalculator.clampXp(prefs.getInt(KEY_ROOM_XP, 0))
         val level = RoomLevelCalculator.levelForXp(xp)
         persistXpAndLevelIfNeeded(xp, level)
 
         return RoomLoadResult.Created(
             RoomState(
-                roomName = requireNotNull(roomName),
+                roomName = normalizedRoomName,
                 nickname = requireNotNull(nickname),
                 isAnonymous = prefs.getBoolean(KEY_ROOM_ANONYMOUS, false),
                 level = level,
@@ -238,6 +239,15 @@ class RoomLocalStore(
         return value
     }
 
+    private fun normalizeLoadedRoomName(roomName: String): String {
+        if (roomName != LEGACY_DEFAULT_ROOM_NAME) return roomName
+
+        prefs.edit()
+            .putString(KEY_ROOM_NAME, DEFAULT_ROOM_NAME)
+            .apply()
+        return DEFAULT_ROOM_NAME
+    }
+
     private fun persistXpAndLevelIfNeeded(xp: Int, level: Int) {
         val storedXp = prefs.getInt(KEY_ROOM_XP, 0)
         val storedLevel = prefs.getInt(KEY_ROOM_LEVEL, 1)
@@ -280,8 +290,9 @@ class RoomLocalStore(
         const val KEY_ROOM_MY_SLOT = "room_my_slot"
         const val KEY_ROOM_HOST_TIME_ZONE_ID = "room_host_time_zone_id"
 
-        const val INITIAL_ROOM_NAME = "방 1"
         const val INITIAL_NICKNAME = "나"
+        const val DEFAULT_ROOM_NAME = "방 이름"
+        private const val LEGACY_DEFAULT_ROOM_NAME = "저녁 9시 같이 자기"
 
         fun roomTotalKey(dateKey: String): String = "room_total_$dateKey"
         fun missionKey(dateKey: String): String = "room_mission_$dateKey"

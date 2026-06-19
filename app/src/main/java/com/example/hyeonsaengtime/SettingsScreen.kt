@@ -111,11 +111,11 @@ fun SettingsScreen(
         SettingsSectionTitle("방")
         SettingsCard {
             SettingSwitchRow(
-                title = "방에서 익명으로 보이기",
+                title = "방 익명 모드",
                 description = if (initialSettings.isRoomCreated) {
-                    "방장 표시 설정"
+                    "모든 멤버를 익명으로 표시해요"
                 } else {
-                    "방을 만들면 사용할 수 있어요"
+                    "방을 만들면 설정할 수 있어요"
                 },
                 checked = isRoomAnonymous,
                 enabled = initialSettings.isRoomCreated,
