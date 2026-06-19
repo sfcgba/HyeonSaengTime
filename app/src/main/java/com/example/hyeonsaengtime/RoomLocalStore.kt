@@ -13,6 +13,20 @@ class RoomLocalStore(
 
     fun isRoomCreated(): Boolean = prefs.getBoolean(KEY_ROOM_CREATED, false)
 
+    fun leaveRoom() {
+        prefs.edit()
+            .remove(KEY_ROOM_CREATED)
+            .remove(KEY_ROOM_NAME)
+            .remove(KEY_ROOM_NICKNAME)
+            .remove(KEY_ROOM_ANONYMOUS)
+            .remove(KEY_ROOM_LEVEL)
+            .remove(KEY_ROOM_XP)
+            .remove(KEY_ROOM_LAST_SETTLED_DATE)
+            .remove(KEY_ROOM_MY_SLOT)
+            .remove(KEY_ROOM_HOST_TIME_ZONE_ID)
+            .apply()
+    }
+
     fun createRoom(
         roomName: String,
         nickname: String,

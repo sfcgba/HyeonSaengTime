@@ -64,6 +64,14 @@ class CoreCalculationTest {
     }
 
     @Test
+    fun durationFormatter_usesDigitalClockForHomeDurations() {
+        assertEquals("00:02:17", formatDigitalDuration(minutes(2) + seconds(17)))
+        assertEquals("00:02", formatClockHourMinuteDuration(minutes(2) + seconds(17)))
+        assertEquals("12:32", formatClockHourMinuteDuration(hours(12) + minutes(32)))
+        assertEquals("16:00", formatClockHourMinuteDuration(HyeonSaengRules.STREAK_REQUIRED_MILLIS))
+    }
+
+    @Test
     fun streakCalculator_incrementsWhenYesterdayMeetsGoal() {
         val update = StreakCalculator.calculate(
             todayDateKey = "20260610",
@@ -295,6 +303,21 @@ class CoreCalculationTest {
     }
 
     @Test
+    fun localStore_focusSessionActiveOnlyWhenLockSessionIsOpen() {
+        val inactiveStore = HyeonSaengLocalStore(CoreFakeSharedPreferences())
+        val activeStore = HyeonSaengLocalStore(
+            CoreFakeSharedPreferences(
+                mapOf<String, Any>(
+                    TrackingSessionManager.KEY_ACTIVE_LOCK_START to 123L
+                )
+            )
+        )
+
+        assertFalse(inactiveStore.isFocusSessionActive())
+        assertTrue(activeStore.isFocusSessionActive())
+    }
+
+    @Test
     fun settingsStore_savesNicknameAndExistingRoomAnonymousSeparately() {
         val prefs = CoreFakeSharedPreferences(
             mapOf<String, Any>(
@@ -348,6 +371,10 @@ class CoreCalculationTest {
     }
 
     private fun hours(value: Long): Long = value * 60L * 60L * 1000L
+
+    private fun minutes(value: Long): Long = value * 60L * 1000L
+
+    private fun seconds(value: Long): Long = value * 1000L
 }
 
 private class CoreFakeSharedPreferences(

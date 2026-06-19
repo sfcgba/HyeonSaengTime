@@ -68,6 +68,32 @@ class RoomSimulationTest {
     }
 
     @Test
+    fun roomStore_leaveRoomClearsRoomStateOnly() {
+        val prefs = roomPrefs(
+            RoomLocalStore.roomTotalKey("20260610") to hours(2),
+            RoomLocalStore.missionKey("20260610") to RoomMissionId.TOTAL_AT_LEAST_STREAK_TARGET.name
+        )
+        val store = RoomLocalStore(prefs)
+
+        store.leaveRoom()
+
+        assertFalse(store.isRoomCreated())
+        assertFalse(prefs.contains(RoomLocalStore.KEY_ROOM_NAME))
+        assertFalse(prefs.contains(RoomLocalStore.KEY_ROOM_NICKNAME))
+        assertFalse(prefs.contains(RoomLocalStore.KEY_ROOM_ANONYMOUS))
+        assertFalse(prefs.contains(RoomLocalStore.KEY_ROOM_LEVEL))
+        assertFalse(prefs.contains(RoomLocalStore.KEY_ROOM_XP))
+        assertFalse(prefs.contains(RoomLocalStore.KEY_ROOM_LAST_SETTLED_DATE))
+        assertFalse(prefs.contains(RoomLocalStore.KEY_ROOM_MY_SLOT))
+        assertFalse(prefs.contains(RoomLocalStore.KEY_ROOM_HOST_TIME_ZONE_ID))
+        assertEquals(hours(2), prefs.getLong(RoomLocalStore.roomTotalKey("20260610"), 0L))
+        assertEquals(
+            RoomMissionId.TOTAL_AT_LEAST_STREAK_TARGET.name,
+            prefs.getString(RoomLocalStore.missionKey("20260610"), null)
+        )
+    }
+
+    @Test
     fun roomStore_returnsInvalidWithoutDeletingBrokenRoomData() {
         val prefs = RoomFakeSharedPreferences(
             mapOf<String, Any>(
@@ -141,6 +167,17 @@ class RoomSimulationTest {
         assertTrue(missionIsMet(missions, RoomMissionId.TOTAL_AT_LEAST_STREAK_TARGET))
         assertTrue(missionIsMet(missions, RoomMissionId.MIN_MEMBER_AT_LEAST_STREAK_TARGET))
         assertTrue(missionIsMet(missions, RoomMissionId.TOP_MEMBER_AT_LEAST_EIGHTEEN_HOURS))
+    }
+
+    @Test
+    fun roomMissions_useClearDisplayTitles() {
+        val titles = RoomMissionCalculator.calculate(successMembers())
+            .associate { it.id to it.title }
+
+        assertEquals("전원 기록 9시간 이상", titles[RoomMissionId.ALL_MEMBERS_AT_LEAST_NINE_HOURS])
+        assertEquals("방 합산 기록 128시간 이상", titles[RoomMissionId.TOTAL_AT_LEAST_STREAK_TARGET])
+        assertEquals("개인 최저 기록 16시간 이상", titles[RoomMissionId.MIN_MEMBER_AT_LEAST_STREAK_TARGET])
+        assertEquals("개인 최고 기록 18시간 이상", titles[RoomMissionId.TOP_MEMBER_AT_LEAST_EIGHTEEN_HOURS])
     }
 
     @Test

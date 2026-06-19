@@ -35,6 +35,10 @@ class HyeonSaengLocalStore(
 
     fun getStreakCount(): Int = prefs.getInt(KEY_STREAK_COUNT, 0)
 
+    fun isFocusSessionActive(): Boolean {
+        return prefs.getLong(TrackingSessionManager.KEY_ACTIVE_LOCK_START, 0L) > 0L
+    }
+
     fun getPendingDailyRecap(nowMillis: Long = System.currentTimeMillis()): DayResult? {
         val personalTimeZone = HyeonSaengTimeZoneStore.getOrCreatePersonalTimeZone(prefs)
         val todayDateKey = DateKeyFormatter.todayKey(nowMillis, personalTimeZone)

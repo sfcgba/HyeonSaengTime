@@ -49,6 +49,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val settingsStore = remember(context) { HyeonSaengSettingsStore(context) }
+    val roomStore = remember(context) { RoomLocalStore(context) }
     val initialSettings = remember(settingsStore) { settingsStore.getSettings() }
 
     var nickname by remember { mutableStateOf(initialSettings.nickname) }
@@ -120,6 +121,24 @@ fun SettingsScreen(
                 enabled = initialSettings.isRoomCreated,
                 onCheckedChange = { isRoomAnonymous = it }
             )
+            if (initialSettings.isRoomCreated) {
+                Spacer(Modifier.height(14.dp))
+                TextButton(
+                    onClick = {
+                        roomStore.leaveRoom()
+                        onBack()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text(
+                        "방 나가기",
+                        color = HyeonSaengTextMuted,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(28.dp))
@@ -138,11 +157,15 @@ fun SettingsScreen(
         Button(
             onClick = {
                 val nicknameSaved = settingsStore.saveNickname(nickname)
-                if (initialSettings.isRoomCreated) {
-                    settingsStore.saveRoomAnonymous(isRoomAnonymous)
+                if (nicknameSaved) {
+                    if (initialSettings.isRoomCreated) {
+                        settingsStore.saveRoomAnonymous(isRoomAnonymous)
+                    }
+                    settingsStore.saveExtraNotificationsEnabled(extraNotificationsEnabled)
+                    onBack()
+                } else {
+                    message = "닉네임을 확인해 주세요"
                 }
-                settingsStore.saveExtraNotificationsEnabled(extraNotificationsEnabled)
-                message = if (nicknameSaved) "설정을 저장했어요" else "닉네임을 확인해 주세요"
             },
             enabled = canSave,
             colors = ButtonDefaults.buttonColors(containerColor = HyeonSaengPrimary),

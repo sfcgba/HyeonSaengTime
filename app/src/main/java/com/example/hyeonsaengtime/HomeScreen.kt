@@ -2,6 +2,7 @@ package com.example.hyeonsaengtime
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,7 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,7 +54,6 @@ import com.example.hyeonsaengtime.ui.theme.HyeonSaengSurfaceSoft
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengText
 import com.example.hyeonsaengtime.ui.theme.HyeonSaengTextMuted
 import kotlinx.coroutines.delay
-import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -68,6 +70,7 @@ fun HomeScreen(
         )
     }
     var streakCount by remember { mutableStateOf(0) }
+    var isFocusSessionActive by remember { mutableStateOf(localStore.isFocusSessionActive()) }
     var roomResult by remember {
         mutableStateOf<RoomOverviewResult>(roomStore.getRoomOverview())
     }
@@ -77,6 +80,7 @@ fun HomeScreen(
         while (true) {
             todayProgress = localStore.getTodayProgress()
             streakCount = localStore.getStreakCount()
+            isFocusSessionActive = localStore.isFocusSessionActive()
             roomResult = roomStore.getRoomOverview()
             delay(1000L)
         }
@@ -111,12 +115,17 @@ fun HomeScreen(
         when (val result = roomResult) {
             RoomOverviewResult.NotCreated -> SoloRoomCard(
                 progress = todayProgress,
+                isFocusSessionActive = isFocusSessionActive,
                 onCreateRoomClick = onCreateRoomClick
             )
 
             is RoomOverviewResult.Invalid -> InvalidRoomCard(result.reasons)
 
-            is RoomOverviewResult.Created -> RoomMembersCard(result.overview)
+            is RoomOverviewResult.Created -> RoomMembersCard(
+                overview = result.overview,
+                currentTodayMillis = todayProgress.hyeonsaengMillis,
+                isFocusSessionActive = isFocusSessionActive
+            )
         }
     }
 }
@@ -170,6 +179,12 @@ private fun TimerCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_streak_leaf),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
                 Text(
                     text = "연속 ${streakCount}일",
                     color = HyeonSaengText,
@@ -192,7 +207,7 @@ private fun TimerCard(
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "오늘의 목표까지 ${formatDigitalDuration(progress.hyeonsaengMillis)} / ${formatDigitalDuration(HyeonSaengRules.STREAK_REQUIRED_MILLIS)}",
+                text = "오늘의 목표까지 ${formatClockHourMinuteDuration(progress.hyeonsaengMillis)}/${formatClockHourMinuteDuration(HyeonSaengRules.STREAK_REQUIRED_MILLIS)}",
                 color = HyeonSaengTextMuted,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -223,7 +238,11 @@ private fun MissionCard(mission: RoomMissionResult) {
                     .background(HyeonSaengAccentSoft),
                 contentAlignment = Alignment.Center
             ) {
-                Text("◎", color = HyeonSaengText, style = MaterialTheme.typography.bodyMedium)
+                Image(
+                    painter = painterResource(R.drawable.ic_mission_target),
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp)
+                )
             }
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -249,13 +268,14 @@ private fun MissionCard(mission: RoomMissionResult) {
 @Composable
 private fun SoloRoomCard(
     progress: HyeonSaengProgress,
+    isFocusSessionActive: Boolean,
     onCreateRoomClick: () -> Unit
 ) {
     RoomCardFrame(minHeight = 282.dp) {
         RoomCardHeader(
             title = "방 인원",
             trailing = "1명 집중 중 · 1/1",
-            subtitle = "현재 1명이 열심히 살고 있어요"
+            subtitle = "잘하고 있어요"
         )
         Spacer(Modifier.height(24.dp))
         Row(
@@ -264,8 +284,8 @@ private fun SoloRoomCard(
         ) {
             MemberBubble(
                 name = "나",
-                timeText = formatGoalDuration(progress.hyeonsaengMillis),
-                active = progress.hyeonsaengMillis > 0L,
+                timeText = formatClockHourMinuteDuration(progress.hyeonsaengMillis),
+                active = isFocusSessionActive,
                 self = true
             )
         }
@@ -299,9 +319,19 @@ private fun SoloRoomCard(
 }
 
 @Composable
-private fun RoomMembersCard(overview: RoomOverview) {
-    val members = overview.todayMembers
-    val activeCount = members.count { it.hyeonsaengMillis > 0L }
+private fun RoomMembersCard(
+    overview: RoomOverview,
+    currentTodayMillis: Long,
+    isFocusSessionActive: Boolean
+) {
+    val members = overview.todayMembers.map { member ->
+        if (member.isMe) {
+            member.copy(hyeonsaengMillis = currentTodayMillis)
+        } else {
+            member
+        }
+    }
+    val activeCount = if (isFocusSessionActive) 1 else 0
     val xpInLevel = RoomLevelCalculator.xpInCurrentLevel(overview.state.xp)
 
     RoomCardFrame(minHeight = 282.dp) {
@@ -318,9 +348,9 @@ private fun RoomMembersCard(overview: RoomOverview) {
             ) {
                 rowMembers.forEach { member ->
                     MemberBubble(
-                        name = member.displayName,
-                        timeText = formatGoalDuration(member.hyeonsaengMillis),
-                        active = member.hyeonsaengMillis > 0L,
+                        name = displayMemberName(member),
+                        timeText = formatClockHourMinuteDuration(member.hyeonsaengMillis),
+                        active = member.isMe && isFocusSessionActive,
                         self = member.isMe,
                         modifier = Modifier.weight(1f)
                     )
@@ -419,18 +449,38 @@ private fun MemberBubble(
     ) {
         Box(
             modifier = Modifier
-                .size(if (self) 46.dp else 42.dp)
-                .clip(CircleShape)
-                .background(
-                    when {
-                        self -> HyeonSaengPrimary
-                        active -> HyeonSaengAccent
-                        else -> HyeonSaengSurfaceSoft
-                    }
-                ),
+                .size(54.dp),
             contentAlignment = Alignment.Center
         ) {
+            if (active) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .shadow(
+                            elevation = 11.dp,
+                            shape = CircleShape,
+                            clip = false,
+                            ambientColor = HyeonSaengAccent.copy(alpha = 0.4f),
+                            spotColor = HyeonSaengAccent.copy(alpha = 0.4f)
+                        )
+                        .clip(CircleShape)
+                        .background(HyeonSaengAccent)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(HyeonSaengSurfaceSoft)
+                )
+            }
             if (self) {
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(HyeonSaengPrimary)
+                )
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -446,7 +496,7 @@ private fun MemberBubble(
                 style = MaterialTheme.typography.bodyMedium
             )
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
         Text(
             text = name,
             color = HyeonSaengText,
@@ -466,17 +516,6 @@ private fun MemberBubble(
     }
 }
 
-private fun formatDigitalDuration(millis: Long): String {
-    val totalSeconds = millis.coerceAtLeast(0L) / 1000L
-    val hours = totalSeconds / 3600L
-    val minutes = (totalSeconds % 3600L) / 60L
-    val seconds = totalSeconds % 60L
-    return String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
-}
-
-private fun formatGoalDuration(millis: Long): String {
-    val totalMinutes = millis.coerceAtLeast(0L) / 1000L / 60L
-    val hours = totalMinutes / 60L
-    val minutes = totalMinutes % 60L
-    return String.format(Locale.US, "%d:%02d", hours, minutes)
+private fun displayMemberName(member: RoomMember): String {
+    return if (member.isMe) member.displayName.removeSuffix(" (나)") else member.displayName
 }

@@ -9,24 +9,24 @@ object RoomMissionCalculator {
         return listOf(
             RoomMissionResult(
                 id = RoomMissionId.ALL_MEMBERS_AT_LEAST_NINE_HOURS,
-                title = "전원 9시간 이상",
+                title = "전원 기록 9시간 이상",
                 isMet = members.isNotEmpty() &&
                     members.all { it.hyeonsaengMillis >= HyeonSaengRules.ROOM_ALL_MEMBER_REQUIRED_MILLIS }
             ),
             RoomMissionResult(
                 id = RoomMissionId.TOTAL_AT_LEAST_STREAK_TARGET,
-                title = "방 합계 128시간 이상",
+                title = "방 합산 기록 128시간 이상",
                 isMet = totalMillis >= HyeonSaengRules.ROOM_TOTAL_REQUIRED_MILLIS
             ),
             RoomMissionResult(
                 id = RoomMissionId.MIN_MEMBER_AT_LEAST_STREAK_TARGET,
-                title = "최저 기록 16시간 이상",
+                title = "개인 최저 기록 16시간 이상",
                 isMet = members.isNotEmpty() &&
                     minMillis >= HyeonSaengRules.ROOM_MIN_MEMBER_REQUIRED_MILLIS
             ),
             RoomMissionResult(
                 id = RoomMissionId.TOP_MEMBER_AT_LEAST_EIGHTEEN_HOURS,
-                title = "최고 기록 18시간 이상",
+                title = "개인 최고 기록 18시간 이상",
                 isMet = members.isNotEmpty() &&
                     maxMillis >= HyeonSaengRules.ROOM_TOP_MEMBER_REQUIRED_MILLIS
             )
