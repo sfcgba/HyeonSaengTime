@@ -1,6 +1,5 @@
 package com.example.hyeonsaengtime
 
-import android.content.SharedPreferences
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -41,10 +40,12 @@ class CoreCalculationTest {
     }
 
     @Test
-    fun todayProgress_usesTotalLockedMillisDirectly() {
-        val progress = TodayProgressCalculator.calculate(totalLockedMillis = hours(9))
+    fun hyeonsaengProgress_usesTotalLockedMillisDirectly() {
+        val progress = HyeonSaengProgressCalculator.calculate(
+            totalLockedMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS
+        )
 
-        assertEquals(hours(9), progress.todayHyeonsaengMillis)
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, progress.hyeonsaengMillis)
         assertEquals(HyeonSaengRules.STREAK_REQUIRED_HOURS, progress.streakRequiredHours)
         assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, progress.streakRequiredMillis)
         assertEquals(1f, progress.streakProgress, 0.0001f)
@@ -53,19 +54,27 @@ class CoreCalculationTest {
     }
 
     @Test
-    fun todayProgress_calculatesProgressAndRemainingTime() {
-        val progress = TodayProgressCalculator.calculate(totalLockedMillis = hours(2))
+    fun hyeonsaengProgress_calculatesProgressAndRemainingTime() {
+        val progress = HyeonSaengProgressCalculator.calculate(totalLockedMillis = hours(4))
 
         assertEquals(0.25f, progress.streakProgress, 0.0001f)
         assertFalse(progress.isStreakRequirementMet)
-        assertEquals(hours(6), progress.remainingMillisForStreak)
+        assertEquals(hours(12), progress.remainingMillisForStreak)
+    }
+
+    @Test
+    fun durationFormatter_usesDigitalClockForHomeDurations() {
+        assertEquals("00:02:17", formatDigitalDuration(minutes(2) + seconds(17)))
+        assertEquals("00:02", formatClockHourMinuteDuration(minutes(2) + seconds(17)))
+        assertEquals("12:32", formatClockHourMinuteDuration(hours(12) + minutes(32)))
+        assertEquals("16:00", formatClockHourMinuteDuration(HyeonSaengRules.STREAK_REQUIRED_MILLIS))
     }
 
     @Test
     fun streakCalculator_incrementsWhenYesterdayMeetsGoal() {
         val update = StreakCalculator.calculate(
             todayDateKey = "20260610",
-            yesterdayTotalMillis = hours(8),
+            yesterdayTotalMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
             requiredMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
             currentStreakCount = 2,
             lastCheckDateKey = "20260609"
@@ -95,7 +104,7 @@ class CoreCalculationTest {
     fun streakCalculator_doesNotPersistWhenAlreadyCheckedToday() {
         val update = StreakCalculator.calculate(
             todayDateKey = "20260610",
-            yesterdayTotalMillis = hours(8),
+            yesterdayTotalMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
             requiredMillis = HyeonSaengRules.STREAK_REQUIRED_MILLIS,
             currentStreakCount = 2,
             lastCheckDateKey = "20260610"
@@ -109,26 +118,112 @@ class CoreCalculationTest {
     @Test
     fun localStore_readsTodayProgressFromPreferences() {
         val now = millis(seoul, 2026, 6, 10, 12, 0)
-        val prefs = CoreFakeSharedPreferences(
+        val prefs = FakeSharedPreferences(
             mapOf<String, Any>(
-                HyeonSaengLocalStore.totalKey("20260610") to hours(9)
+                HyeonSaengLocalStore.totalKey("20260610") to HyeonSaengRules.STREAK_REQUIRED_MILLIS
             )
         )
         val store = HyeonSaengLocalStore(prefs)
 
         val progress = store.getTodayProgress(now)
 
-        assertEquals(hours(9), progress.todayHyeonsaengMillis)
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, progress.hyeonsaengMillis)
         assertEquals(HyeonSaengRules.STREAK_REQUIRED_HOURS, progress.streakRequiredHours)
         assertTrue(progress.isStreakRequirementMet)
     }
 
     @Test
+    fun localStore_ignoresLegacyDailyGoalForTodayProgress() {
+        val now = millis(seoul, 2026, 6, 10, 12, 0)
+        val prefs = FakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengSettingsStore.LEGACY_KEY_DAILY_GOAL_HOURS to 18,
+                HyeonSaengLocalStore.totalKey("20260610") to hours(17)
+            )
+        )
+        val store = HyeonSaengLocalStore(prefs)
+
+        val progress = store.getTodayProgress(now)
+
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_HOURS, progress.streakRequiredHours)
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, progress.streakRequiredMillis)
+        assertTrue(progress.isStreakRequirementMet)
+        assertEquals(0L, progress.remainingMillisForStreak)
+    }
+
+    @Test
+    fun localStore_readsYesterdayResultAndUpdatesStreak() {
+        val now = millis(seoul, 2026, 6, 10, 9, 0)
+        val prefs = FakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengLocalStore.totalKey("20260609") to HyeonSaengRules.STREAK_REQUIRED_MILLIS,
+                HyeonSaengLocalStore.totalKey("20260610") to hours(1),
+                HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
+            )
+        )
+        val store = HyeonSaengLocalStore(prefs)
+
+        val result = store.getYesterdayResult(now)
+
+        assertEquals("20260609", result.dateKey)
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, result.hyeonsaengMillis)
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, result.streakRequiredMillis)
+        assertTrue(result.isStreakRequirementMet)
+        assertEquals(0L, result.remainingMillisForStreak)
+        assertEquals(3, result.streakCountAfterUpdate)
+        assertEquals(3, prefs.getInt(HyeonSaengLocalStore.KEY_STREAK_COUNT, 0))
+        assertEquals(
+            "20260610",
+            prefs.getString(HyeonSaengLocalStore.KEY_STREAK_LAST_DATE, null)
+        )
+    }
+
+    @Test
+    fun localStore_yesterdayResultUsesNeutralMissState() {
+        val now = millis(seoul, 2026, 6, 10, 9, 0)
+        val prefs = FakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengLocalStore.totalKey("20260609") to hours(15),
+                HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
+            )
+        )
+        val store = HyeonSaengLocalStore(prefs)
+
+        val result = store.getYesterdayResult(now)
+
+        assertEquals("20260609", result.dateKey)
+        assertEquals(hours(15), result.hyeonsaengMillis)
+        assertFalse(result.isStreakRequirementMet)
+        assertEquals(hours(1), result.remainingMillisForStreak)
+        assertEquals(0, result.streakCountAfterUpdate)
+        assertEquals(0, prefs.getInt(HyeonSaengLocalStore.KEY_STREAK_COUNT, -1))
+    }
+
+    @Test
+    fun localStore_ignoresLegacyDailyGoalForYesterdayStreakUpdate() {
+        val now = millis(seoul, 2026, 6, 10, 9, 0)
+        val prefs = FakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengSettingsStore.LEGACY_KEY_DAILY_GOAL_HOURS to 18,
+                HyeonSaengLocalStore.totalKey("20260609") to hours(17),
+                HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
+            )
+        )
+        val store = HyeonSaengLocalStore(prefs)
+
+        val result = store.getYesterdayResult(now)
+
+        assertEquals(HyeonSaengRules.STREAK_REQUIRED_MILLIS, result.streakRequiredMillis)
+        assertTrue(result.isStreakRequirementMet)
+        assertEquals(3, result.streakCountAfterUpdate)
+    }
+
+    @Test
     fun localStore_updatesStreakOncePerDay() {
         val now = millis(seoul, 2026, 6, 10, 9, 0)
-        val prefs = CoreFakeSharedPreferences(
+        val prefs = FakeSharedPreferences(
             mapOf<String, Any>(
-                HyeonSaengLocalStore.totalKey("20260609") to hours(8),
+                HyeonSaengLocalStore.totalKey("20260609") to HyeonSaengRules.STREAK_REQUIRED_MILLIS,
                 HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
             )
         )
@@ -145,7 +240,7 @@ class CoreCalculationTest {
     @Test
     fun localStore_keepsStreakWhenAlreadyCheckedToday() {
         val now = millis(seoul, 2026, 6, 10, 9, 0)
-        val prefs = CoreFakeSharedPreferences(
+        val prefs = FakeSharedPreferences(
             mapOf<String, Any>(
                 HyeonSaengLocalStore.totalKey("20260609") to hours(0),
                 HyeonSaengLocalStore.KEY_STREAK_COUNT to 3,
@@ -160,6 +255,104 @@ class CoreCalculationTest {
             "20260610",
             prefs.getString(HyeonSaengLocalStore.KEY_STREAK_LAST_DATE, null)
         )
+    }
+
+    @Test
+    fun localStore_showsDailyRecapOnceAfterDateChanges() {
+        val now = millis(seoul, 2026, 6, 10, 9, 0)
+        val prefs = FakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengLocalStore.KEY_LAST_APP_SEEN_DATE to "20260609",
+                HyeonSaengLocalStore.totalKey("20260609") to HyeonSaengRules.STREAK_REQUIRED_MILLIS,
+                HyeonSaengLocalStore.KEY_STREAK_COUNT to 2
+            )
+        )
+        val store = HyeonSaengLocalStore(prefs)
+
+        val pending = store.getPendingDailyRecap(now)
+
+        requireNotNull(pending)
+        assertEquals("20260609", pending.dateKey)
+        assertEquals(3, pending.streakCountAfterUpdate)
+
+        store.markDailyRecapShown(now)
+
+        assertEquals(
+            "20260610",
+            prefs.getString(HyeonSaengLocalStore.KEY_LAST_DAILY_RECAP_SHOWN_DATE, null)
+        )
+        assertEquals(
+            "20260610",
+            prefs.getString(HyeonSaengLocalStore.KEY_LAST_APP_SEEN_DATE, null)
+        )
+        assertEquals(null, store.getPendingDailyRecap(now))
+    }
+
+    @Test
+    fun localStore_doesNotShowDailyRecapOnFirstSeenDate() {
+        val now = millis(seoul, 2026, 6, 10, 9, 0)
+        val prefs = FakeSharedPreferences()
+        val store = HyeonSaengLocalStore(prefs)
+
+        assertEquals(null, store.getPendingDailyRecap(now))
+        assertEquals(
+            "20260610",
+            prefs.getString(HyeonSaengLocalStore.KEY_LAST_APP_SEEN_DATE, null)
+        )
+    }
+
+    @Test
+    fun localStore_focusSessionActiveOnlyWhenLockSessionIsOpen() {
+        val inactiveStore = HyeonSaengLocalStore(FakeSharedPreferences())
+        val activeStore = HyeonSaengLocalStore(
+            FakeSharedPreferences(
+                mapOf<String, Any>(
+                    TrackingSessionManager.KEY_ACTIVE_LOCK_START to 123L
+                )
+            )
+        )
+
+        assertFalse(inactiveStore.isFocusSessionActive())
+        assertTrue(activeStore.isFocusSessionActive())
+    }
+
+    @Test
+    fun settingsStore_savesNicknameAndExistingRoomAnonymousSeparately() {
+        val prefs = FakeSharedPreferences(
+            mapOf<String, Any>(
+                RoomLocalStore.KEY_ROOM_CREATED to true,
+                RoomLocalStore.KEY_ROOM_NICKNAME to "기존",
+                RoomLocalStore.KEY_ROOM_ANONYMOUS to false
+            )
+        )
+        val settingsStore = HyeonSaengSettingsStore(prefs)
+
+        val nicknameSaved = settingsStore.saveNickname(" 새닉 ")
+        val anonymousSaved = settingsStore.saveRoomAnonymous(true)
+
+        assertTrue(nicknameSaved)
+        assertTrue(anonymousSaved)
+        assertEquals("새닉", prefs.getString(HyeonSaengSettingsStore.KEY_USER_NICKNAME, null))
+        assertEquals("새닉", prefs.getString(RoomLocalStore.KEY_ROOM_NICKNAME, null))
+        assertTrue(prefs.getBoolean(RoomLocalStore.KEY_ROOM_ANONYMOUS, false))
+    }
+
+    @Test
+    fun settingsStore_rejectsBlankNicknameAndCleansLegacySettings() {
+        val prefs = FakeSharedPreferences(
+            mapOf<String, Any>(
+                HyeonSaengSettingsStore.LEGACY_KEY_DAILY_GOAL_HOURS to 22,
+                HyeonSaengSettingsStore.LEGACY_KEY_USER_ANONYMOUS to true
+            )
+        )
+        val settingsStore = HyeonSaengSettingsStore(prefs)
+
+        val settings = settingsStore.getSettings()
+
+        assertFalse(prefs.contains(HyeonSaengSettingsStore.LEGACY_KEY_DAILY_GOAL_HOURS))
+        assertFalse(prefs.contains(HyeonSaengSettingsStore.LEGACY_KEY_USER_ANONYMOUS))
+        assertFalse(settingsStore.saveNickname("  "))
+        assertEquals(RoomLocalStore.INITIAL_NICKNAME, settings.nickname)
     }
 
     private fun millis(
@@ -177,116 +370,8 @@ class CoreCalculationTest {
     }
 
     private fun hours(value: Long): Long = value * 60L * 60L * 1000L
-}
 
-private class CoreFakeSharedPreferences(
-    initialValues: Map<String, Any> = emptyMap()
-) : SharedPreferences {
-    private val values = initialValues.toMutableMap()
+    private fun minutes(value: Long): Long = value * 60L * 1000L
 
-    override fun getAll(): MutableMap<String, *> = values.toMutableMap()
-
-    override fun getString(key: String?, defValue: String?): String? {
-        return values[key] as? String ?: defValue
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    override fun getStringSet(
-        key: String?,
-        defValues: MutableSet<String>?
-    ): MutableSet<String>? {
-        return (values[key] as? Set<String>)?.toMutableSet() ?: defValues
-    }
-
-    override fun getInt(key: String?, defValue: Int): Int {
-        return values[key] as? Int ?: defValue
-    }
-
-    override fun getLong(key: String?, defValue: Long): Long {
-        return values[key] as? Long ?: defValue
-    }
-
-    override fun getFloat(key: String?, defValue: Float): Float {
-        return values[key] as? Float ?: defValue
-    }
-
-    override fun getBoolean(key: String?, defValue: Boolean): Boolean {
-        return values[key] as? Boolean ?: defValue
-    }
-
-    override fun contains(key: String?): Boolean = values.containsKey(key)
-
-    override fun edit(): SharedPreferences.Editor = FakeEditor()
-
-    override fun registerOnSharedPreferenceChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener?
-    ) = Unit
-
-    override fun unregisterOnSharedPreferenceChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener?
-    ) = Unit
-
-    private inner class FakeEditor : SharedPreferences.Editor {
-        private val changes = mutableMapOf<String, Any?>()
-        private var shouldClear = false
-
-        override fun putString(key: String?, value: String?): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun putStringSet(
-            key: String?,
-            values: MutableSet<String>?
-        ): SharedPreferences.Editor {
-            if (key != null) changes[key] = values?.toSet()
-            return this
-        }
-
-        override fun putInt(key: String?, value: Int): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun putLong(key: String?, value: Long): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun putFloat(key: String?, value: Float): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor {
-            if (key != null) changes[key] = value
-            return this
-        }
-
-        override fun remove(key: String?): SharedPreferences.Editor {
-            if (key != null) changes[key] = null
-            return this
-        }
-
-        override fun clear(): SharedPreferences.Editor {
-            shouldClear = true
-            return this
-        }
-
-        override fun commit(): Boolean {
-            apply()
-            return true
-        }
-
-        override fun apply() {
-            if (shouldClear) values.clear()
-            changes.forEach { (key, value) ->
-                if (value == null) {
-                    values.remove(key)
-                } else {
-                    values[key] = value
-                }
-            }
-        }
-    }
+    private fun seconds(value: Long): Long = value * 1000L
 }
